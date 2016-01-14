@@ -8,5 +8,7 @@ local_ip=$4
 remote_ip=$5
 init_restart=$6
 
-echo "down $0 $1 $2 $3 $4 $5 $6" >> logs/up-down.log
+echo "down $1 $2 $3 $4 $5 $6" >> logs/up-down.log
 echo "down" > logs/$dev.status
+
+rm -f logs/$dev.pid
