@@ -22,7 +22,6 @@ class VPNTunnel(object): # {{{
                 self.device = line.split()[1].strip()
         fd.close()
 # }}}
-
 def openvpn_create_parser(parser):# {{{
     g = parser.add_mutually_exclusive_group(required=True)
     g.add_argument('--status',
@@ -43,7 +42,6 @@ def openvpn_create_parser(parser):# {{{
             default=None,
             help='Bring OpenVPN tunnel down')
 # }}}
-
 def openvpn_execute(opts): # {{{
     def openvpn_status_mux(name): # {{{
         statusfn = 'openvpn/logs/%s.status' % name2config[name].device
@@ -103,12 +101,68 @@ def openvpn_execute(opts): # {{{
         openvpn_down()
 # }}}
 
-
-def bgp_create_parser(_parser):# {{{
-    pass
+def bgp_create_parser(parser):# {{{
+    g = parser.add_mutually_exclusive_group(required=True)
+    g.add_argument('--status',
+            dest='status',
+            action='store_true',
+            default=False,
+            help='List status of BGP router and peering sessions')
+    g.add_argument('--start',
+            dest='start',
+            action='store_true',
+            default=False,
+            help='Start BGP router and peering sessions')
+    g.add_argument('--stop',
+            dest='stop',
+            action='store_true',
+            default=False,
+            help='Stop BGP router and peering sessions')
+    parser.add_argument('--bin-path',
+            dest='bgp_bin_path',
+            metavar='DIR',
+            type=str,
+            default='/usr/lib/quagga',
+            required=False,
+            help='Directory containing Quagga binaries [%(default)s]')
+    parser.add_argument('--bgpd-vty-port',
+            dest='bgp_vty_port',
+            metavar='PORT',
+            type=int,
+            default=51515,
+            required=False,
+            help='Communication port to BGP router management [%(default)s]')
 # }}}
-def bgp_execute(_opts): # {{{
-    pass
+def bgp_execute(opts): # {{{
+    def bgp_check_quagga():# {{{
+        pidfn = 'quagga/logs/pid'
+        try:
+            fd = open(pidfn, 'r')
+            _pid = int(fd.readline().strip())
+        except (IOError, EOFError):
+            w('pid file %s not found.\n' % pidfn)
+            w('you will have to terminate this tunnel manually.\n')
+            sys.exit(os.EX_SOFTWARE)
+    # }}}
+    def bgp_status():
+        pass
+    def bgp_start():
+        cmd = ['%s/bgpd' % opts.bgp_bin_path,
+                '--pid_file=logs/pidfile',
+                '--config_file=configs/bgpd.conf',
+                '--vty_addr=127.0.0.1',
+                '--vty_port=%d' % opts.bgp_vty_port,
+                '--daemon']
+        w(' '.join(cmd) + '\n')
+        subprocess.check_call(cmd, cwd='%s/quagga/' % os.getcwd())
+    def bgp_stop():
+        pass
+    if opts.status:
+        bgp_status()
+    elif opts.start is not None:
+        bgp_start()
+    elif opts.stop is not None:
+        bgp_stop()
 # }}}
 
 def create_parser(): # {{{
