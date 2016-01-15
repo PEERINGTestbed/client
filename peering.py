@@ -1,11 +1,12 @@
 #!/usr/bin/python3
 
-import argparse
 import glob
 import os
 import os.path
 import subprocess
 import sys
+
+import argparse
 
 w = sys.stdout.write
 
@@ -134,8 +135,8 @@ def bgp_create_parser(parser):# {{{
             help='Communication port to BGP router management [%(default)s]')
 # }}}
 def bgp_execute(opts): # {{{
-    def bgp_check_quagga():# {{{
-        pidfn = 'quagga/logs/pid'
+    def _bgp_check_quagga():# {{{
+        pidfn = 'bird/logs/bird.pid'
         try:
             fd = open(pidfn, 'r')
             _pid = int(fd.readline().strip())
@@ -147,14 +148,10 @@ def bgp_execute(opts): # {{{
     def bgp_status():
         pass
     def bgp_start():
-        cmd = ['%s/bgpd' % opts.bgp_bin_path,
-                '--pid_file=logs/pidfile',
-                '--config_file=configs/bgpd.conf',
-                '--vty_addr=127.0.0.1',
-                '--vty_port=%d' % opts.bgp_vty_port,
-                '--daemon']
-        w(' '.join(cmd) + '\n')
-        subprocess.check_call(cmd, cwd='%s/quagga/' % os.getcwd())
+        cmd = ['bird', '-s logs/bird.ctl',
+                '-c configs/bird.conf',
+                '-P logs/bird.pid']
+        subprocess.check_call(cmd, cwd='%s/bird/' % os.getcwd())
     def bgp_stop():
         pass
     if opts.status:
@@ -165,6 +162,37 @@ def bgp_execute(opts): # {{{
         bgp_stop()
 # }}}
 
+def prefix_create_parser(parser): # {{{
+    parser.add_argument('prefix',
+            type=str,
+            nargs=1,
+            help='Prefix to operate on')
+    g = parser.add_mutually_exclusive_group(required=True)
+    g.add_argument('--announce',
+            dest='action',
+            action='store_const',
+            const='announce',
+            help='Announce prefix')
+    g.add_argument('--withdraw',
+            dest='action',
+            action='store_const',
+            const='withdraw',
+            help='Withdraw prefix')
+    parser.add_argument('--mux',
+            metavar='MUX',
+            dest='mux',
+            type=str,
+            default='all',
+            required=False,
+            help='Change announce to MUX only (bgp --status for list) [%(default)s]')
+    parser.add_argument('--prepend',
+            metavar='ASN',
+            dest='poison',
+            type=int,
+            default=None,
+            help='Poison ASN in announcement [disabled]')
+# }}}
+
 def create_parser(): # {{{
     parser = argparse.ArgumentParser(description='PEERING controller')
 
@@ -173,8 +201,11 @@ def create_parser(): # {{{
     openvpn_parser = subparsers.add_parser('openvpn', help='Control OpenVPN tunnels')
     openvpn_create_parser(openvpn_parser)
 
-    bgp_parser = subparsers.add_parser('bgp', help='Control BGP peering and announcements')
+    bgp_parser = subparsers.add_parser('bgp', help='Control BGP peerings')
     bgp_create_parser(bgp_parser)
+
+    prefix_parser = subparsers.add_parser('prefix', help='Control prefix announcements')
+    prefix_create_parser(prefix_parser)
 
     return parser
 # }}}
