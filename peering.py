@@ -102,66 +102,6 @@ def openvpn_execute(opts): # {{{
         openvpn_down()
 # }}}
 
-def bgp_create_parser(parser):# {{{
-    g = parser.add_mutually_exclusive_group(required=True)
-    g.add_argument('--status',
-            dest='status',
-            action='store_true',
-            default=False,
-            help='List status of BGP router and peering sessions')
-    g.add_argument('--start',
-            dest='start',
-            action='store_true',
-            default=False,
-            help='Start BGP router and peering sessions')
-    g.add_argument('--stop',
-            dest='stop',
-            action='store_true',
-            default=False,
-            help='Stop BGP router and peering sessions')
-    parser.add_argument('--bin-path',
-            dest='bgp_bin_path',
-            metavar='DIR',
-            type=str,
-            default='/usr/lib/quagga',
-            required=False,
-            help='Directory containing Quagga binaries [%(default)s]')
-    parser.add_argument('--bgpd-vty-port',
-            dest='bgp_vty_port',
-            metavar='PORT',
-            type=int,
-            default=51515,
-            required=False,
-            help='Communication port to BGP router management [%(default)s]')
-# }}}
-def bgp_execute(opts): # {{{
-    def _bgp_check_quagga():# {{{
-        pidfn = 'bird/logs/bird.pid'
-        try:
-            fd = open(pidfn, 'r')
-            _pid = int(fd.readline().strip())
-        except (IOError, EOFError):
-            w('pid file %s not found.\n' % pidfn)
-            w('you will have to terminate this tunnel manually.\n')
-            sys.exit(os.EX_SOFTWARE)
-    # }}}
-    def bgp_status():
-        pass
-    def bgp_start():
-        cmd = ['bird', '-s logs/bird.ctl',
-                '-c configs/bird.conf',
-                '-P logs/bird.pid']
-        subprocess.check_call(cmd, cwd='%s/bird/' % os.getcwd())
-    def bgp_stop():
-        pass
-    if opts.status:
-        bgp_status()
-    elif opts.start is not None:
-        bgp_start()
-    elif opts.stop is not None:
-        bgp_stop()
-# }}}
-
 def prefix_create_parser(parser): # {{{
     parser.add_argument('prefix',
             type=str,

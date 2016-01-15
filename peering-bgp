@@ -1,0 +1,65 @@
+#!/bin/bash
+set -eu
+
+birdsock="bird/logs/bird.ctl"
+
+usage () {
+    cat <<-EOF
+usage: $0 cli|start|status|stop
+
+cli     Start a BIRD command line interface for interacting with the
+        BGP router directly.  Type '?' in the BIRD interface to see a
+        list of possible commands.  Use at your own risk.
+
+start   Start the BIRD router and establish BGP sessions.  BIRD is
+        configured to establish BGP sessions with all PEERING muxes
+        through OpenVPN tunnels.  Use OpenVPN to create tunnels to
+        the muxes you want BIRD to establish BGP sessions with.
+
+status  Show status of BGP sessions.  Sessions in Idle state are
+        waiting for their respective OpenVPN tunnels to be
+        established.  Sessions in the Established state are
+        exchanging routes.
+
+stop    Stop the BIRD daemon and close BGP sessions.
+
+EOF
+    exit 0
+}
+
+die_if_not_sock () {
+    if [ -S $birdsock ] ; then return ; fi
+    echo "BIRD control socket not found; try --start"
+    exit 1
+}
+
+die_if_sock () {
+    if [ ! -S $birdsock ] ; then return ; fi
+    echo "BIRD socket exists; try --stop"
+    exit 1
+}
+
+if [ $# -eq 0 ] ; then usage ; fi
+
+case $1 in
+cli)
+    die_if_not_sock
+    birdc -s $birdsock
+    ;;
+start)
+    die_if_sock
+    (bird -c bird/configs/bird.conf -s $birdsock)
+    ;;
+status)
+    die_if_not_sock
+    echo "show protocols" | birdc -s $birdsock
+    ;;
+stop)
+    die_if_not_sock
+    echo "down" | birdc -s $birdsock
+    rm -f $birdsock
+    ;;
+*)
+    usage
+    ;;
+esac
