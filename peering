@@ -28,7 +28,7 @@ openvpn)
     ;;
 bgp)
     shift
-    ./peering-openvpn $@
+    ./peering-bgp $@
     ;;
 prefix)
     shift
