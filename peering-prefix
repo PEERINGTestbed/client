@@ -1,0 +1,105 @@
+#!/bin/bash
+set -eu
+
+program=$(basename $0)
+progdir=$(cd $(dirname $0); pwd -P)
+. $progdir/peering-config
+
+mux=all
+poison=0
+prefix=invalid
+
+do_announce () {
+    if [ $poison -eq 0 ] ; then
+        filterfn="$birdcfgs/export_${cmux}_$pfxid.conf"
+        test -s $filterfn || die "error [file $filterfn not found]"
+        echo "if ( net = $prefix ) then { accept ; }" > $filterfn
+    else
+        die "error [poisoning not implemented]"
+    fi
+}
+
+
+usage () { # {{{
+    cat <<-EOF
+Usage: peering prefix announce|withdraw [-m mux] [-p poison] prefix
+
+announce    Announce prefix from one or all muxes.
+withdraw    Withdraw prefix from one or all muxes.
+
+-m mux      Control which mux the prefix should be announced to
+            or withdrawn from.  [default: $mux]
+-p asn      Prepend announcement to include the given ASN in the
+            AS-path and trigger BGP loop prevention (poisoning).
+            Also known as BGP poisoning.  [default: do not poison]
+
+prefix      Choose the prefix to operate on.  Make sure the prefix
+            has been allocated to you, or your announcement will be
+            filtered by PEERING muxes.
+
+EOF
+    exit 0
+}
+# }}}
+
+test $# -ge 2 || usage
+
+OPTIND=2
+while getopts "m:p:" opt $* ; do
+case $opt in
+m)  mux=$OPTARG ;;
+p)  poison=$OPTARG ;;
+*)  usage
+esac
+done
+
+if [ $mux != all -a ${mux2dev[$mux]:-unset} = unset ] ; then
+    die "error [mux unknown: $mux]"
+fi
+
+if [[ $p -ne 0 ]] ; then
+    if [[ ! $p =~ [0-9]+ ]] ; then
+        die "error [poisoned AS should be a number]"
+    elif [[ $p -gt 65535 || $p -lt 1 ]] ; then
+        die "error [poisoned AS not a  16-bit number]"
+    fi
+fi
+
+prefix=${!OPTIND}
+pfxid=${pfx2id[$prefix]:-unset}
+if [ $pfxid = unset ] ; then
+    echo "list of PEERING prefixes:"
+    cut -d " " -f 1 prefix/prefix2id.txt
+    die "error [invalid prefix: $prefix]"
+fi
+
+subcmd=$1
+case $subcmd in
+announce)
+    if [ $mux = all ] ; then
+        for cmux in ${!mux2dev[@]} ; do
+            do_announce $cmux $prefix
+        done
+    else
+        do_announce $mux $prefix
+    fi
+    echo "reconfigure" | birdc -s $birdsock
+    ;;
+withdraw)
+    if [ $mux = all ] ; then
+        for cmux in ${!mux2dev[@]} ; do
+            filterfn="$birdcfgs/export_${cmux}_$pfxid.conf"
+            test -s $filterfn || die "error [file $filterfn not found]"
+            echo "if ( net = $prefix ) then { reject ; }" > $filterfn
+        done
+    else
+        filterfn="$birdcfgs/export_${mux}_$pfxid.conf"
+        test -s $filterfn || die "error [file $filterfn not found]"
+        echo "if ( net = $prefix ) then { reject ; }" > $filterfn
+    fi
+    echo "reconfigure" | birdc -s $birdsock
+    ;;
+*)
+    usage
+    ;;
+esac

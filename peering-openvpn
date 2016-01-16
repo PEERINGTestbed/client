@@ -1,7 +1,9 @@
 #!/bin/bash
 set -eu
 
-mux2dev_db="openvpn/configs/mux2dev.txt"
+program=$(basename $0)
+progdir=$(cd $(dirname $0); pwd -P)
+. $progdir/peering-config
 
 usage () {
     cat <<-EOF
@@ -18,58 +20,46 @@ EOF
 }
 
 mux_status_check() {
-    mux=$1
-    if [ -z "${mux2dev[$mux]}" ] ; then
-        echo "error [mux $mux unknown]"
-        echo "try killing OpenVPN instances and cleaning openvpn/logs/"
-        exit 1
-    fi
-    dev=${mux2dev[$mux]}
-    pidfn="openvpn/logs/$dev.pid"
+    local mux=$1
+    local dev=${mux2dev[$mux]:-unset}
+    test $dev != "unset" || die "error [mux $mux unknown]"
+    local pidfn="$openvpn_logs/$dev.pid"
     if [ ! -s $pidfn ] ; then
-        echo "down"
+        mstat="down"
         return
     fi
     if ! kill -0 $(cat $pidfn) &> /dev/null ; then
-        echo "error [$pidfn exists but cannot send signal]"
-        echo "try killing OpenVPN instances and cleaning openvpn/logs/"
-        exit 1
+        die "error [$pidfn exists but cannot send signal]"
     fi
-    statfn="openvpn/logs/$dev.status"
-    if [ ! -s $statfn ] ; then
-        echo "error [$pidfn exists but $statfn missing]"
-        echo "try killing OpenVPN instances and cleaning openvpn/logs/"
-        return
-    fi
-    head -n 1 $statfn | cut -d " " -f 1,2
+    local statfn="openvpn/logs/$dev.status"
+    test -s $statfn || die "error [$pidfn exists but $statfn missing]"
+    mstat=$(head -n 1 $statfn | cut -d " " -f 1,2)
 }
 
-if [ ! -s $mux2dev_db ] ; then echo "$mux2dev_db not found" ; exit 1 ; fi
-declare -A mux2dev
-while read mux dev ; do
-    mux2dev[$mux]=$dev
-done < $mux2dev_db
+test $# -ge 1 || usage
 
-if [ $# -lt 1 ] ; then usage ; fi
 case $1 in
 up)
-    if [ $# -lt 2 ] ; then usage ; fi
+    test $# -ge 2 || usage
     mux=$2
-    mstat=$(mux_status_check $mux)
-    if [[ $mstat =~ ^up.*$ ]] ; then echo "tunnel $mux already up" ; exit 0 ; fi
+    mux_status_check $mux
+    if [[ $mstat =~ ^up.*$ ]] ; then term "tunnel $mux already up" ; fi
     openvpn --cd $(pwd)/openvpn --config configs/$mux.conf
     ;;
 down)
-    if [ $# -lt 2 ] ; then usage ; fi
+    test $# -ge 2 || usage
     mux=$2
-    mstat=$(mux_status_check $mux)
-    if [[ $mstat =~ ^down$ ]] ; then echo "tunnel $mux already down" ; exit 0 ; fi
+    mux_status_check $mux
+    if [[ $mstat =~ ^down$ ]] ; then term "tunnel $mux already down" ; fi
     dev=${mux2dev[$mux]}
-    kill $(cat openvpn/logs/$dev.pid)
+    kill -SIGINT $(cat openvpn/logs/$dev.pid)
+    rm -f openvpn/logs/$dev.pid
+    rm -f openvpn/logs/$dev.status
     ;;
 status)
     for mux in ${!mux2dev[@]} ; do
-        echo "$mux ${mux2dev[$mux]} $(mux_status_check $mux)"
+        mux_status_check $mux
+        echo "$mux ${mux2dev[$mux]} $mstat"
     done | sort
     ;;
 *)

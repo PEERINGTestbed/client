@@ -1,0 +1,34 @@
+bird_sock="bird/logs/bird.ctl"
+bird_cfgs="bird/configs/"
+bird_logs="bird/logs/"
+
+openvpn_cfgs="openvpn/configs/"
+openvpn_logs="openvpn/logs/"
+
+mux2dev_db="$openvpncfgs/mux2dev.txt"
+pfx2id_db="$birdcfgs/pfx2id.txt"
+
+term () {
+    echo $1
+    exit 0
+}
+
+die () {
+    echo $1
+    exit 1
+}
+
+test -s $mux2dev_db || die "error [$mux2dev_db not found]"
+test -s pfx2id_db || die "error [$pfx2id_db not found]"
+
+declare -A mux2dev
+while read mux dev ; do
+    mux2dev[$mux]=$dev
+done < $mux2dev_db
+
+declare -A pfx2id
+while read pfx pfxid ; do
+    pfx2id[$pfx]=$pfxid
+done < $pfx2id_db
+
+# vim: ft=sh

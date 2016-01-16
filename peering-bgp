@@ -1,7 +1,9 @@
 #!/bin/bash
 set -eu
 
-birdsock="bird/logs/bird.ctl"
+program=$(basename $0)
+progdir=$(cd $(dirname $0); pwd -P)
+. $progdir/peering-config
 
 usage () {
     cat <<-EOF
@@ -27,37 +29,25 @@ EOF
     exit 0
 }
 
-die_if_not_sock () {
-    if [ -S $birdsock ] ; then return ; fi
-    echo "BIRD control socket not found; try --start"
-    exit 1
-}
-
-die_if_sock () {
-    if [ ! -S $birdsock ] ; then return ; fi
-    echo "BIRD socket exists; try --stop"
-    exit 1
-}
-
-if [ $# -eq 0 ] ; then usage ; fi
+if [ $# -lt 1 ] ; then usage ; fi
 
 case $1 in
 cli)
-    die_if_not_sock
-    birdc -s $birdsock
+    test -S $bird_sock || die "error [BIRD control socket not found, try --start]"
+    birdc -s $bird_sock
     ;;
 start)
-    die_if_sock
-    (bird -c bird/configs/bird.conf -s $birdsock)
+    test -S $bird_sock && die "error [BIRD socket exists, try --stop]"
+    bird -c bird/configs/bird.conf -s $bird_sock
     ;;
 status)
-    die_if_not_sock
-    echo "show protocols" | birdc -s $birdsock
+    test -S $bird_sock || die "error [BIRD control socket not found, try --start]"
+    echo "show protocols" | birdc -s $bird_sock
     ;;
 stop)
-    die_if_not_sock
-    echo "down" | birdc -s $birdsock
-    rm -f $birdsock
+    test -S $bird_sock || die "error [BIRD control socket not found, try --start]"
+    echo "down" | birdc -s $bird_sock
+    rm -f $bird_sock
     ;;
 *)
     usage
