@@ -10,5 +10,3 @@ init_restart=$6
 
 echo "down $1 $2 $3 $4 $5 $6" >> logs/up-down.log
 echo "down" > logs/$dev.status
-
-rm -f logs/$dev.pid
