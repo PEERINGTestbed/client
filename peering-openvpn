@@ -31,9 +31,12 @@ mux_status_check() {
     if ! kill -0 $(cat $pidfn) &> /dev/null ; then
         die "error [$pidfn exists but cannot send signal]"
     fi
-    local statfn="openvpn/logs/$dev.status"
-    test -s $statfn || die "error [$pidfn exists but $statfn missing]"
-    mstat=$(head -n 1 $statfn | cut -d " " -f 1,2)
+    local statfn="$openvpn_logs/$dev.status"
+    if [ ! -s $statfn ] ; then
+        mstat="down"
+    else
+        mstat=$(head -n 1 $statfn | cut -d " " -f 1,2)
+    fi
 }
 
 test $# -ge 1 || usage
@@ -52,9 +55,9 @@ down)
     mux_status_check $mux
     if [[ $mstat =~ ^down$ ]] ; then term "tunnel $mux already down" ; fi
     dev=${mux2dev[$mux]}
-    kill -SIGINT $(cat openvpn/logs/$dev.pid)
-    rm -f openvpn/logs/$dev.pid
-    rm -f openvpn/logs/$dev.status
+    kill -SIGINT $(cat $openvpn_logs/$dev.pid)
+    rm -f $openvpn_logs/$dev.pid
+    rm -f $openvpn_logs/$dev.status
     ;;
 status)
     for mux in ${!mux2dev[@]} ; do

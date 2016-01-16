@@ -7,47 +7,58 @@ progdir=$(cd $(dirname $0); pwd -P)
 
 usage () {
     cat <<-EOF
-usage: $0 cli|start|status|stop
+usage: $0 cli|start|status|stop|adv mux
 
-cli     Start a BIRD command line interface for interacting with the
-        BGP router directly.  Type '?' in the BIRD interface to see a
-        list of possible commands.  Use at your own risk.
+cli         Start a BIRD command line interface for interacting with
+            the BGP router directly.  Type '?' in the BIRD interface
+            to see a list of possible commands.  Use at your own
+            risk.
 
-start   Start the BIRD router and establish BGP sessions.  BIRD is
-        configured to establish BGP sessions with all PEERING muxes
-        through OpenVPN tunnels.  Use OpenVPN to create tunnels to
-        the muxes you want BIRD to establish BGP sessions with.
+start       Start the BIRD router and establish BGP sessions.  BIRD
+            is configured to establish BGP sessions with all PEERING
+            muxes through OpenVPN tunnels.  Use OpenVPN to create
+            tunnels to the muxes you want BIRD to establish BGP
+            sessions with.
 
-status  Show status of BGP sessions.  Sessions in Idle state are
-        waiting for their respective OpenVPN tunnels to be
-        established.  Sessions in the Established state are
-        exchanging routes.
+status      Show status of BGP sessions.  Sessions in Idle state are
+            waiting for their respective OpenVPN tunnels to be
+            established.  Sessions in the Established state are
+            exchanging routes.
 
-stop    Stop the BIRD daemon and close BGP sessions.
+stop        Stop the BIRD daemon and close BGP sessions.
+
+adv mux     Show prefixes being advertised to mux, after export
+            filters.
 
 EOF
     exit 0
 }
 
-if [ $# -lt 1 ] ; then usage ; fi
+test $# -ge 1 || usage
 
 case $1 in
 cli)
-    test -S $bird_sock || die "error [BIRD control socket not found, try --start]"
+    test -S $bird_sock || die "error [BIRD control socket not found]"
     birdc -s $bird_sock
     ;;
 start)
-    test -S $bird_sock && die "error [BIRD socket exists, try --stop]"
-    bird -c bird/configs/bird.conf -s $bird_sock
+    test -S $bird_sock && die "error [BIRD control socket exists]"
+    bird -c $bird_cfgs/bird.conf -s $bird_sock
     ;;
 status)
-    test -S $bird_sock || die "error [BIRD control socket not found, try --start]"
+    test -S $bird_sock || term "BIRD is down"
     echo "show protocols" | birdc -s $bird_sock
     ;;
 stop)
-    test -S $bird_sock || die "error [BIRD control socket not found, try --start]"
+    test -S $bird_sock || die "error [BIRD control socket not found]"
     echo "down" | birdc -s $bird_sock
     rm -f $bird_sock
+    ;;
+adv)
+    test $# -ge 2 || usage
+    mux=$2
+    test ${mux2dev[$mux]:-unset} != "unset" || die "error [unknown mux: $mux]"
+    echo "show route export $mux" | birdc -s $bird_sock
     ;;
 *)
     usage

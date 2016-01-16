@@ -10,15 +10,15 @@ poison=0
 prefix=invalid
 
 do_announce () {
+    local mux=$1
     if [ $poison -eq 0 ] ; then
-        filterfn="$birdcfgs/export_${cmux}_$pfxid.conf"
+        filterfn="$bird_cfgs/export_${mux}_$pfxid.conf"
         test -s $filterfn || die "error [file $filterfn not found]"
         echo "if ( net = $prefix ) then { accept ; }" > $filterfn
     else
         die "error [poisoning not implemented]"
     fi
 }
-
 
 usage () { # {{{
     cat <<-EOF
@@ -57,19 +57,19 @@ if [ $mux != all -a ${mux2dev[$mux]:-unset} = unset ] ; then
     die "error [mux unknown: $mux]"
 fi
 
-if [[ $p -ne 0 ]] ; then
-    if [[ ! $p =~ [0-9]+ ]] ; then
+if [[ $poison -ne 0 ]] ; then
+    if [[ ! $poison =~ [0-9]+ ]] ; then
         die "error [poisoned AS should be a number]"
-    elif [[ $p -gt 65535 || $p -lt 1 ]] ; then
+    elif [[ $poison -gt 65535 || $poison -lt 1 ]] ; then
         die "error [poisoned AS not a  16-bit number]"
     fi
 fi
 
-prefix=${!OPTIND}
+prefix=${!OPTIND:-unset}
 pfxid=${pfx2id[$prefix]:-unset}
 if [ $pfxid = unset ] ; then
     echo "list of PEERING prefixes:"
-    cut -d " " -f 1 prefix/prefix2id.txt
+    cut -d " " -f 1 $bird_cfgs/pfx2id.txt
     die "error [invalid prefix: $prefix]"
 fi
 
@@ -78,26 +78,26 @@ case $subcmd in
 announce)
     if [ $mux = all ] ; then
         for cmux in ${!mux2dev[@]} ; do
-            do_announce $cmux $prefix
+            do_announce $cmux
         done
     else
-        do_announce $mux $prefix
+        do_announce $mux
     fi
-    echo "reconfigure" | birdc -s $birdsock
+    echo "configure \"$bird_cfgs/bird.conf\"" | birdc -s $bird_sock
     ;;
 withdraw)
     if [ $mux = all ] ; then
         for cmux in ${!mux2dev[@]} ; do
-            filterfn="$birdcfgs/export_${cmux}_$pfxid.conf"
+            filterfn="$bird_cfgs/export_${cmux}_$pfxid.conf"
             test -s $filterfn || die "error [file $filterfn not found]"
             echo "if ( net = $prefix ) then { reject ; }" > $filterfn
         done
     else
-        filterfn="$birdcfgs/export_${mux}_$pfxid.conf"
+        filterfn="$bird_cfgs/export_${mux}_$pfxid.conf"
         test -s $filterfn || die "error [file $filterfn not found]"
         echo "if ( net = $prefix ) then { reject ; }" > $filterfn
     fi
-    echo "reconfigure" | birdc -s $birdsock
+    echo "configure \"$bird_cfgs/bird.conf\"" | birdc -s $bird_sock
     ;;
 *)
     usage

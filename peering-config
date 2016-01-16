@@ -5,8 +5,11 @@ bird_logs="bird/logs/"
 openvpn_cfgs="openvpn/configs/"
 openvpn_logs="openvpn/logs/"
 
-mux2dev_db="$openvpncfgs/mux2dev.txt"
-pfx2id_db="$birdcfgs/pfx2id.txt"
+mkdir -p $bird_logs
+mkdir -p $openvpn_logs
+
+mux2dev_db="$openvpn_cfgs/mux2dev.txt"
+pfx2id_db="$bird_cfgs/pfx2id.txt"
 
 term () {
     echo $1
@@ -19,7 +22,7 @@ die () {
 }
 
 test -s $mux2dev_db || die "error [$mux2dev_db not found]"
-test -s pfx2id_db || die "error [$pfx2id_db not found]"
+test -s $pfx2id_db || die "error [$pfx2id_db not found]"
 
 declare -A mux2dev
 while read mux dev ; do
