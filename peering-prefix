@@ -11,16 +11,19 @@ prefix=invalid
 
 do_announce () {
     local mux=$1
-    if [ $poison -eq 0 ] ; then
-        filterfn="$bird_cfgs/export_${mux}_$pfxid.conf"
-        test -s $filterfn || die "error [file $filterfn not found]"
-        echo "if ( net = $prefix ) then { accept ; }" > $filterfn
-    else
-        die "error [poisoning not implemented]"
-    fi
+    filterfn="$bird_cfgs/export_${mux}_$pfxid.conf"
+    test -s $filterfn || die "error [file $filterfn not found]"
+    echo "if ( net = $prefix ) then {" > $filterfn
+    echo "    bgp_path = delete(bgp_path, 65000);" >> $filterfn
+    if [ $poison -ne 0 ] ; then
+    echo "    bgp_path.prepend(47065);" >> $filterfn
+    echo "    bgp_path.prepend($poison);" >> $filterfn
+	fi
+    echo "    accept;" >> $filterfn
+    echo "}" >> $filterfn
 }
 
-usage () { # {{{
+usage () {
     cat <<-EOF
 Usage: peering prefix announce|withdraw [-m mux] [-p poison] prefix
 
@@ -40,7 +43,6 @@ prefix      Choose the prefix to operate on.  Make sure the prefix
 EOF
     exit 0
 }
-# }}}
 
 test $# -ge 2 || usage
 
