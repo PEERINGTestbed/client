@@ -30,7 +30,7 @@ prevent unauthorized access to your keys.
 
 ## Controlling OpenVPN
 
-`./peering-openvpn status|up mux|down mux`
+`usage ./peering openvpn status|up mux|down mux`
 
 Both OpenVPN and BIRD have to run with superuser rights, you may
 want to run the provided scripts as root or `suid` the script.  When
@@ -42,13 +42,13 @@ controlling OpenVPN, we support three operations:
   address.  You can use `ip route` to identify the IP address of the
   remote end as the gateway associated with each tunnel.
 
-* `peering openvpn up|down *mux*`: bring the tunnel up to `mux` up or
+* `peering openvpn up|down mux`: bring the tunnel up to `mux` up or
   down.  Muxes are identified by their nicknames, which you can
   check by running `openvpn status` above.
 
 ## Controling BIRD
 
-`usage: ./peering-bgp cli|start|status|stop|adv mux`
+`usage: ./peering bgp cli|start|status|stop|adv mux`
 
 We support five operations to interact with BIRD:
 
@@ -65,7 +65,7 @@ We support five operations to interact with BIRD:
   tunnels to be established.  Sessions in the Established state are
   exchanging routes.
 
-* `peering bgp adv *mux*`: show which prefixes are being advertised
+* `peering bgp adv mux`: show which prefixes are being advertised
   to `mux`.  This is useful when debugging announcements.
 
 * `peering bgp cli`: open the BIRD command line interface.  Type '?'
@@ -81,7 +81,7 @@ prefixes.  Be sure to use only prefixes allocated to you, or your
 announcements will be filtered at PEERING servers.  When announcing
 or withdrawing prefixes, we support the following options:
 
-* `[-m *mux*]`: control which `mux` to announce or withdraw from.
+* `[-m mux]`: control which `mux` to announce or withdraw from.
   Use the mux nickname as shown by `openvpn status`.  The default is
   to announce and withdraw from all muxes (anycast).
 
