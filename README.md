@@ -30,9 +30,66 @@ prevent unauthorized access to your keys.
 
 ## Controlling OpenVPN
 
+`./peering-openvpn status|up mux|down mux`
+
+Both OpenVPN and BIRD have to run with superuser rights, you may
+want to run the provided scripts as root or `suid` the script.  When
+controlling OpenVPN, we support three operations:
+
+* `peering openvpn status`: show the status of OpenVPN tunnels.
+  Tunnels can be either up or down.  If a tunnel is up, we will also
+  list the device (the interface) it is running on and the local IP
+  address.  You can use `ip route` to identify the IP address of the
+  remote end as the gateway associated with each tunnel.
+
+* `peering openvpn up|down *mux*`: bring the tunnel up to `mux` up or
+  down.  Muxes are identified by their nicknames, which you can
+  check by running `openvpn status` above.
+
 ## Controling BIRD
 
+`usage: ./peering-bgp cli|start|status|stop|adv mux`
+
+We support five operations to interact with BIRD:
+
+* `peering bgp start|stop`: start or stop the BIRD software router.
+  BIRD is preconfigured to establish BGP sessions with all PEERING
+  muxes through OpenVPN tunnels.  Use OpenVPN to create tunnels to
+  the muxes you want BIRD to establish BGP sessions with.  Starting
+  or stopping bird will establish and close all BGP sessions
+  automatically.
+
+* `peering bgp status`: show the status of the BIRD software router.
+  If BIRD is running, it will show the status of BGP all sessions.
+  Sessions in Idle state are waiting for their respective OpenVPN
+  tunnels to be established.  Sessions in the Established state are
+  exchanging routes.
+
+* `peering bgp adv *mux*`: show which prefixes are being advertised
+  to `mux`.  This is useful when debugging announcements.
+
+* `peering bgp cli`: open the BIRD command line interface.  Type '?'
+  in the BIRD interface to see a list of possible commands.  Use at
+  your own risk.
+
 ## Controlling prefix announcements
+
+`usage: peering prefix announce|withdraw [-m mux] [-p poison] prefix`
+
+We also provide support for announcing and withdrawing PEERING
+prefixes.  Be sure to use only prefixes allocated to you, or your
+announcements will be filtered at PEERING servers.  When announcing
+or withdrawing prefixes, we support the following options:
+
+* `[-m *mux*]`: control which `mux` to announce or withdraw from.
+  Use the mux nickname as shown by `openvpn status`.  The default is
+  to announce and withdraw from all muxes (anycast).
+
+* `[-p asn]`: poison a given ASN, i.e., prepend the announcement to
+  include ASN in the AS-path and trigger BGP loop prevention.
+
+Using an invalid prefix will trigger the program to print a list of
+valid PEERING prefix.
 
 ## Limitations and extending the controller
 
