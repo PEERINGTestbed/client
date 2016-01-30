@@ -88,8 +88,25 @@ or withdrawing prefixes, we support the following options:
 * `[-p asn]`: poison a given ASN, i.e., prepend the announcement to
   include ASN in the AS-path and trigger BGP loop prevention.
 
-Using an invalid prefix will trigger the program to print a list of
-valid PEERING prefix.
+Please follow these guidelines when using your PEERING client:
+
+* Do not announce prefixes that are not allocated to your
+  experiment.  Do not announce prefixes outside of PEERING address
+  space.  (The PEERING prefix control script will print a list of
+  valid PEERING prefixes if you input an incorrect one.)
+
+* Similarly, do not spoof packets with source IP addresses outside
+  the PEERING address space allocated to your experiment.
+
+* Do not change announcements more than once every 90 minutes.  This
+  ensures your experiment is not affected by route-flap dampening
+  and avoids attracting complaints operators.
+
+* Be conservative.  Routers are often running close to their limits
+  and we do not want any breakage.  In particular, do not announce
+  AS-paths with more than 5 AS-hops, do not announce paths
+  containing AS-sets with more than 5 ASes, and do not announce
+  paths with more than 5 attached communities.
 
 ## Limitations and extending the controller
 
