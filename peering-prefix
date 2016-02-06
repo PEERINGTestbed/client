@@ -14,7 +14,7 @@ do_announce () {
     filterfn="$bird_cfgs/export_${mux}_$pfxid.conf"
     test -s $filterfn || die "error [file $filterfn not found]"
     echo "if ( net = $prefix ) then {" > $filterfn
-    echo "    bgp_path = delete(bgp_path, 65000);" >> $filterfn
+    # echo "    bgp_path = delete(bgp_path, 65000);" >> $filterfn
     if [ $poison -ne 0 ] ; then
     echo "    bgp_path.prepend(47065);" >> $filterfn
     echo "    bgp_path.prepend($poison);" >> $filterfn
