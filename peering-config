@@ -21,7 +21,17 @@ die () {
     exit 1
 }
 
-test -s $mux2dev_db || die "error [$mux2dev_db not found]"
+if [ ! -s $mux2dev_db ] ; then
+    echo "rebuilding $mux2dev_db"
+    for fn in $(ls $openvpn_cfgs/*.conf) ; do
+        echo $fn
+        name=$(basename $fn)
+        name=${name%%.conf}
+        echo -n "$name " >> $mux2dev_db
+        grep -Ee "^dev " $fn | cut -d " " -f 2 >> $mux2dev_db
+    done
+fi
+
 test -s $pfx2id_db || die "error [$pfx2id_db not found]"
 
 declare -A mux2dev
