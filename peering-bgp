@@ -43,6 +43,8 @@ cli)
     ;;
 start)
     test -S $bird_sock && die "error [BIRD control socket exists]"
+    mkdir -p $bird_routes
+    mkdir -p $bird_filters
     bird -c $bird_cfgs/bird.conf -s $bird_sock
     ;;
 status)
@@ -50,6 +52,8 @@ status)
     echo "show protocols" | birdc -s $bird_sock
     ;;
 stop)
+    rm -rf $bird_routes
+    rm -rf $bird_filters
     test -S $bird_sock || die "error [BIRD control socket not found]"
     echo "down" | birdc -s $bird_sock
     rm -f $bird_sock
