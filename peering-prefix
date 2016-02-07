@@ -1,5 +1,6 @@
 #!/bin/bash
 set -eu
+set -x
 
 program=$(basename $0)
 progdir=$(cd $(dirname $0); pwd -P)
@@ -9,6 +10,7 @@ mux=all
 poison=0
 origin=0
 prefix=invalid
+communities=()
 
 do_announce () {
     local mux=$1
@@ -19,6 +21,11 @@ do_announce () {
     echo "    bgp_path.prepend($poison);" >> $filterfn
     elif [ $origin -ne 0 ] ; then
     echo "    bgp_path.prepend($origin);" >> $filterfn
+    fi
+    if [[ ${communities[@]:-undef} != "undef" ]] ; then
+        for comm in "${communities[@]}" ; do
+            echo "    bgp_community.add((47065,$comm));" >> $filterfn;
+        done
     fi
     echo "    accept;" >> $filterfn
     echo "}" >> $filterfn
@@ -40,6 +47,11 @@ withdraw    Withdraw prefix from one or all muxes.
             Also known as BGP poisoning.  [default: do not poison]
 -o asn      Prepend annoucnement to include the given ASN as the
             origin of the announcement.  [default: keep unchanged]
+-c id       Attach community (47065,id) to the announcement.  This
+            will let the announcement through peer with the given
+            id.  May be added multiple times to announce from
+            multiple peers.  [default: announce to all peers]
+            (see https://peering.usc.edu/peers for the list of peers)
 
 prefix      Choose the prefix to operate on.  Make sure the prefix
             has been allocated to you, or your announcement will be
@@ -52,11 +64,17 @@ EOF
 test $# -ge 2 || usage
 
 OPTIND=2
-while getopts "m:p:o:" opt $* ; do
+while getopts "m:p:o:c:" opt $* ; do
 case $opt in
 m)  mux=$OPTARG ;;
 p)  poison=$OPTARG ;;
 o)  origin=$OPTARG ;;
+c)
+    if [[ $OPTARG -gt 65535 || $OPTARG -lt 1 ]] ; then
+        die "error [-c id accepts only 16-bit numbers]"
+    fi
+    communities+=($OPTARG)
+    ;;
 *)  usage
 esac
 done
