@@ -1,5 +1,7 @@
 bird_sock="bird/logs/bird.ctl"
 bird_cfgs="bird/configs/"
+bird_routes="$bird_cfgs/route-announcements/"
+bird_filters="$bird_cfgs/prefix-filters/"
 bird_logs="bird/logs/"
 
 openvpn_cfgs="openvpn/configs/"

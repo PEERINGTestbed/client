@@ -7,20 +7,23 @@ progdir=$(cd $(dirname $0); pwd -P)
 
 mux=all
 poison=0
+origin=0
 prefix=invalid
 
 do_announce () {
     local mux=$1
-    filterfn="$bird_cfgs/export_${mux}_$pfxid.conf"
-    test -s $filterfn || die "error [file $filterfn not found]"
+    filterfn="$bird_cfgs/export_${mux}_$prefixfn.conf"
     echo "if ( net = $prefix ) then {" > $filterfn
-    # echo "    bgp_path = delete(bgp_path, 65000);" >> $filterfn
     if [ $poison -ne 0 ] ; then
     echo "    bgp_path.prepend(47065);" >> $filterfn
     echo "    bgp_path.prepend($poison);" >> $filterfn
-	fi
+    elif [ $origin -ne 0 ] ; then
+    echo "    bgp_path.prepend($origin);" >> $filterfn
+    fi
     echo "    accept;" >> $filterfn
     echo "}" >> $filterfn
+    filterfn=$bird_routes/$prefixfn
+    echo "route $prefix unreachable;" > $filterfn
 }
 
 usage () {
@@ -35,6 +38,8 @@ withdraw    Withdraw prefix from one or all muxes.
 -p asn      Prepend announcement to include the given ASN in the
             AS-path and trigger BGP loop prevention (poisoning).
             Also known as BGP poisoning.  [default: do not poison]
+-o asn      Prepend annoucnement to include the given ASN as the
+            origin of the announcement.  [default: keep unchanged]
 
 prefix      Choose the prefix to operate on.  Make sure the prefix
             has been allocated to you, or your announcement will be
@@ -51,6 +56,7 @@ while getopts "m:p:" opt $* ; do
 case $opt in
 m)  mux=$OPTARG ;;
 p)  poison=$OPTARG ;;
+o)  origin=$OPTARG ;;
 *)  usage
 esac
 done
@@ -67,6 +73,18 @@ if [[ $poison -ne 0 ]] ; then
     fi
 fi
 
+if [[ $origin -ne 0 ]] ; then
+    if [[ ! $origin =~ [0-9]+ ]] ; then
+        die "error [origin AS should be a number]"
+    elif [[ $origin -gt 65535 || $origin -lt 1 ]] ; then
+        die "error [origin AS not a  16-bit number]"
+    fi
+fi
+
+if [[ $poison -ne 0 && $origin -ne 0 ]] ; then
+    die "error [cannot -p and -o at the same time]"
+fi
+
 prefix=${!OPTIND:-unset}
 pfxid=${pfx2id[$prefix]:-unset}
 if [ $pfxid = unset ] ; then
@@ -74,6 +92,7 @@ if [ $pfxid = unset ] ; then
     cut -d " " -f 1 $bird_cfgs/pfx2id.txt
     die "error [invalid prefix: $prefix]"
 fi
+prefixfn=${prefix/\//-}
 
 subcmd=$1
 case $subcmd in
@@ -90,14 +109,10 @@ announce)
 withdraw)
     if [ $mux = all ] ; then
         for cmux in ${!mux2dev[@]} ; do
-            filterfn="$bird_cfgs/export_${cmux}_$pfxid.conf"
-            test -s $filterfn || die "error [file $filterfn not found]"
-            echo "if ( net = $prefix ) then { reject ; }" > $filterfn
+            rm -f $bird_cfgs/export_${cmux}_$prefixfn.conf
         done
     else
-        filterfn="$bird_cfgs/export_${mux}_$pfxid.conf"
-        test -s $filterfn || die "error [file $filterfn not found]"
-        echo "if ( net = $prefix ) then { reject ; }" > $filterfn
+        rm -f $bird_cfgs/export_${mux}_$prefixfn.conf
     fi
     echo "configure \"$bird_cfgs/bird.conf\"" | birdc -s $bird_sock
     ;;
