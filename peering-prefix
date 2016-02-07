@@ -12,7 +12,7 @@ prefix=invalid
 
 do_announce () {
     local mux=$1
-    filterfn="$bird_cfgs/export_${mux}_$prefixfn.conf"
+    filterfn="$bird_filters/export_${mux}_$prefixfn.conf"
     echo "if ( net = $prefix ) then {" > $filterfn
     if [ $poison -ne 0 ] ; then
     echo "    bgp_path.prepend(47065);" >> $filterfn
