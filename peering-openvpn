@@ -29,7 +29,10 @@ mux_status_check() {
         return
     fi
     if ! kill -0 $(cat $pidfn) &> /dev/null ; then
-        die "error [$pidfn exists but cannot send signal]"
+        echo "deleting $pidfn: cannot send signal"
+        rm $pidfn
+        mstat="down"
+        return
     fi
     local statfn="$openvpn_logs/$dev.status"
     if [ ! -s $statfn ] ; then
@@ -40,6 +43,7 @@ mux_status_check() {
 }
 
 test $# -ge 1 || usage
+test $EUID -eq 0 || die "OpenVPN requires root access."
 
 case $1 in
 up)
@@ -47,7 +51,9 @@ up)
     mux=$2
     mux_status_check $mux
     if [[ $mstat =~ ^up.*$ ]] ; then term "tunnel $mux already up" ; fi
-    openvpn --cd $(pwd)/openvpn --config configs/$mux.conf
+    if ! openvpn --cd $(pwd)/openvpn --config configs/$mux.conf ; then
+        die "openvpn did not start correctly, please check logs"
+    fi
     ;;
 down)
     test $# -ge 2 || usage
