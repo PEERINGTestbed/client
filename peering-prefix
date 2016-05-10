@@ -1,6 +1,5 @@
 #!/bin/bash
 set -eu
-set -x
 
 program=$(basename $0)
 progdir=$(cd $(dirname $0); pwd -P)
@@ -35,7 +34,11 @@ do_announce () {
 
 usage () {
     cat <<-EOF
-Usage: peering prefix announce|withdraw [-m mux] [-p poison] prefix
+Usage: peering prefix announce|withdraw [-m mux] [-p poison|-o origin]
+                                        [-c id1] ... [-c idN] prefix
+
+Options can be specified in any order, but announce|withdraw must
+be the first argument and prefix must be the last.
 
 announce    Announce prefix from one or all muxes.
 withdraw    Withdraw prefix from one or all muxes.
@@ -47,6 +50,7 @@ withdraw    Withdraw prefix from one or all muxes.
             Also known as BGP poisoning.  [default: do not poison]
 -o asn      Prepend annoucnement to include the given ASN as the
             origin of the announcement.  [default: keep unchanged]
+            Cannot be combined with -p.
 -c id       Attach community (47065,id) to the announcement.  This
             will let the announcement through peer with the given
             id.  May be added multiple times to announce from
@@ -62,6 +66,7 @@ EOF
 }
 
 test $# -ge 2 || usage
+test $EUID -eq 0 || die "The BIRD BGP daemon requires root access."
 
 OPTIND=2
 while getopts "m:p:o:c:" opt $* ; do
