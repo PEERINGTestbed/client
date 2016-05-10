@@ -91,14 +91,16 @@ or withdrawing prefixes, we support the following options:
 * `[-o asn]`: change the origin ASN, i.e., the first ASN in the AS-path,
   to `asn`.  Cannot be combined with `-p`.
 
-* `[-c id]`: Add community `(47065,id)` to the announcement, making
+* `[-c id]`: add community `(47065,id)` to the announcement, making
   sending the announcement through the peer identified by `id` only.
   Can be used multiple times to send announcements through multiple
   peers.  Click [here][1] for a list of PEERING peers.
 
   [1]: https://peering.usc.edu/peers/
 
-Please follow these guidelines when using your PEERING client:
+## Guidelines
+
+Follow these guidelines when using your PEERING client:
 
 * Do not announce prefixes that are not allocated to your
   experiment.  Do not announce prefixes outside of PEERING address
