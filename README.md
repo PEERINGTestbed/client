@@ -86,7 +86,17 @@ or withdrawing prefixes, we support the following options:
   to announce and withdraw from all muxes (anycast).
 
 * `[-p asn]`: poison a given ASN, i.e., prepend the announcement to
-  include ASN in the AS-path and trigger BGP loop prevention.
+  include `asn` in the AS-path and trigger BGP loop prevention.
+
+* `[-o asn]`: change the origin ASN, i.e., the first ASN in the AS-path,
+  to `asn`.  Cannot be combined with `-p`.
+
+* `[-c id]`: Add community `(47065,id)` to the announcement, making
+  sending the announcement through the peer identified by `id` only.
+  Can be used multiple times to send announcements through multiple
+  peers.  Click [here][1] for a list of PEERING peers.
+
+  [1]: https://peering.usc.edu/peers/
 
 Please follow these guidelines when using your PEERING client:
 
