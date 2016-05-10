@@ -35,6 +35,7 @@ EOF
 }
 
 test $# -ge 1 || usage
+test $EUID -eq 0 || die "The BIRD BGP daemon requires root access."
 
 case $1 in
 cli)
