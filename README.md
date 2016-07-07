@@ -24,9 +24,9 @@ repository; on Debian use `apt-get install openvpn bird`.
 To establish OpenVPN tunnels with PEERING muxes, you will need
 PEERING-issued certificates.  You can get certificates by submitting
 a project proposal on our website.  Copy your certificate files into
-`openvpn/certs/` and rename them as `client.crt`, and `client.key`. 
-Then `chmod 400` all files in `openvpn/certs/` to
-prevent unauthorized access to your keys.
+`certs/` and rename them as `client.crt`, and `client.key`.  Then
+`chmod 400` all files in `certs/` to prevent unauthorized access to
+your keys.
 
 You will also need to *explicitly* create a `prefixes.txt` file
 containing the prefixes you are going to announce.  This is an extra
