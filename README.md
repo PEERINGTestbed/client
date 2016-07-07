@@ -28,6 +28,11 @@ a project proposal on our website.  Copy your certificate files into
 Then `chmod 400` all files in `openvpn/certs/` to
 prevent unauthorized access to your keys.
 
+You will also need to *explicitly* create a `prefixes.txt` file
+containing the prefixes you are going to announce.  This is an extra
+safety net.  Specify one prefix per line, in the usual format, e.g.,
+`184.164.236.0/24`.
+
 ## Controlling OpenVPN
 
 `usage ./peering openvpn status|up mux|down mux`
