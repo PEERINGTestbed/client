@@ -1,17 +1,21 @@
-bird_sock="bird/logs/bird.ctl"
-bird_cfgs="bird/configs/"
-bird_routes="$bird_cfgs/route-announcements/"
-bird_filters="$bird_cfgs/prefix-filters/"
-bird_logs="bird/logs/"
+export varrun="$progdir/var"
 
-openvpn_cfgs="openvpn/configs/"
-openvpn_logs="openvpn/logs/"
+export bird_sock="$varrun/bird.ctl"
+export bird_cfgs="$progdir/configs/bird"
+export bird_routes="$bird_cfgs/route-announcements"
+export bird_filters="$bird_cfgs/prefix-filters"
 
-mkdir -p $bird_logs
-mkdir -p $openvpn_logs
+export openvpn_cfgs="$progdir/configs/openvpn"
 
-mux2dev_db="$openvpn_cfgs/mux2dev.txt"
-pfx2id_db="$bird_cfgs/pfx2id.txt"
+export mux2dev_db="$varrun/mux2dev.txt"
+export prefix_db="$progdir/prefixes.txt"
+
+load_mux2dev () {
+    declare -gA mux2dev
+    while read fmux fdev ; do
+        mux2dev[$fmux]=$fdev
+    done < $mux2dev_db
+}
 
 term () {
     echo $1
@@ -23,10 +27,15 @@ die () {
     exit 1
 }
 
+mkdir -p $varrun
+
+export -f load_mux2dev
+export -f term
+export -f die
+
 if [ ! -s $mux2dev_db ] ; then
     echo "rebuilding $mux2dev_db"
     for fn in $(ls $openvpn_cfgs/*.conf) ; do
-        echo $fn
         name=$(basename $fn)
         name=${name%%.conf}
         echo -n "$name " >> $mux2dev_db
@@ -34,16 +43,9 @@ if [ ! -s $mux2dev_db ] ; then
     done
 fi
 
-test -s $pfx2id_db || die "error [$pfx2id_db not found]"
-
-declare -A mux2dev
-while read mux dev ; do
-    mux2dev[$mux]=$dev
-done < $mux2dev_db
-
-declare -A pfx2id
-while read pfx pfxid ; do
-    pfx2id[$pfx]=$pfxid
-done < $pfx2id_db
+if [ ! -s $prefix_db ] ; then
+    echo "error: $prefix_db not found."
+    die "list the prefixes you will announce in $prefix_db"
+fi
 
 # vim: ft=sh

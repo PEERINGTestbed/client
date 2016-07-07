@@ -1,9 +1,9 @@
 #!/bin/bash
 set -eu
 
-program=$(basename $0)
-progdir=$(cd $(dirname $0); pwd -P)
-. $progdir/peering-config
+# program=$(basename $0)
+# progdir=$(cd $(dirname $0); pwd -P)
+# . $progdir/peering-config
 
 mux=all
 poison=0
@@ -84,6 +84,11 @@ c)
 esac
 done
 
+declare -A mux2dev
+while read fmux fdev ; do
+    mux2dev[$fmux]=$fdev
+done < $mux2dev_db
+
 if [ $mux != all -a ${mux2dev[$mux]:-unset} = unset ] ; then
     die "error [mux unknown: $mux]"
 fi
@@ -108,11 +113,16 @@ if [[ $poison -ne 0 && $origin -ne 0 ]] ; then
     die "error [cannot -p and -o at the same time]"
 fi
 
+declare -A pfx2id
+while read pfx ; do
+    pfx2id[$pfx]=enabled
+done < $prefix_db
+
 prefix=${!OPTIND:-unset}
 pfxid=${pfx2id[$prefix]:-unset}
 if [ $pfxid = unset ] ; then
-    echo "list of PEERING prefixes:"
-    cut -d " " -f 1 $bird_cfgs/pfx2id.txt
+    echo "list of configured prefixes:"
+    cut -d " " -f 1 $progdir/prefixes.txt
     die "error [invalid prefix: $prefix]"
 fi
 prefixfn=${prefix/\//-}

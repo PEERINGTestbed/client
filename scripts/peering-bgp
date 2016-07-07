@@ -1,10 +1,6 @@
 #!/bin/bash
 set -eu
 
-program=$(basename $0)
-progdir=$(cd $(dirname $0); pwd -P)
-. $progdir/peering-config
-
 usage () {
     cat <<-EOF
 usage: $0 cli|start|status|stop|adv mux
@@ -37,6 +33,8 @@ EOF
 test $# -ge 1 || usage
 test $EUID -eq 0 || die "The BIRD BGP daemon requires root access."
 
+load_mux2dev
+
 case $1 in
 cli)
     test -S $bird_sock || die "error [BIRD control socket not found]"
@@ -55,9 +53,12 @@ status)
 stop)
     rm -rf $bird_routes
     rm -rf $bird_filters
-    test -S $bird_sock || die "error [BIRD control socket not found]"
-    echo "down" | birdc -s $bird_sock
-    rm -f $bird_sock
+    if [ -S $bird_sock ] ; then
+        if ! $(echo "down" | birdc -s $bird_sock > /dev/null) ;  then
+            echo "BIRD control socket in bad state, deleting."
+        fi
+        rm -f $bird_sock
+    fi
     ;;
 adv)
     test $# -ge 2 || usage

@@ -1,10 +1,6 @@
 #!/bin/bash
 set -eu
 
-program=$(basename $0)
-progdir=$(cd $(dirname $0); pwd -P)
-. $progdir/peering-config
-
 usage () {
     cat <<-EOF
 usage: $0 status|up mux|down mux
@@ -23,7 +19,7 @@ mux_status_check() {
     local mux=$1
     local dev=${mux2dev[$mux]:-unset}
     test $dev != "unset" || die "error [mux $mux unknown]"
-    local pidfn="$openvpn_logs/$dev.pid"
+    local pidfn="$varrun/$dev.pid"
     if [ ! -s $pidfn ] ; then
         mstat="down"
         return
@@ -34,7 +30,7 @@ mux_status_check() {
         mstat="down"
         return
     fi
-    local statfn="$openvpn_logs/$dev.status"
+    local statfn="$varrun/$dev.status"
     if [ ! -s $statfn ] ; then
         mstat="down"
     else
@@ -45,13 +41,18 @@ mux_status_check() {
 test $# -ge 1 || usage
 test $EUID -eq 0 || die "OpenVPN requires root access."
 
+declare -A mux2dev
+while read mux dev ; do
+    mux2dev[$mux]=$dev
+done < $mux2dev_db
+
 case $1 in
 up)
     test $# -ge 2 || usage
     mux=$2
     mux_status_check $mux
     if [[ $mstat =~ ^up.*$ ]] ; then term "tunnel $mux already up" ; fi
-    if ! openvpn --cd $(pwd)/openvpn --config configs/$mux.conf ; then
+    if ! openvpn --cd $progdir --config $openvpn_cfgs/$mux.conf ; then
         die "openvpn did not start correctly, please check logs"
     fi
     ;;
@@ -61,9 +62,9 @@ down)
     mux_status_check $mux
     if [[ $mstat =~ ^down$ ]] ; then term "tunnel $mux already down" ; fi
     dev=${mux2dev[$mux]}
-    kill -SIGINT $(cat $openvpn_logs/$dev.pid)
-    rm -f $openvpn_logs/$dev.pid
-    rm -f $openvpn_logs/$dev.status
+    kill -SIGINT $(cat $varrun/$dev.pid)
+    rm -f $varrun/$dev.pid
+    rm -f $varrun/$dev.status
     ;;
 status)
     for mux in ${!mux2dev[@]} ; do
