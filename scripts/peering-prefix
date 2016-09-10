@@ -126,6 +126,7 @@ if [ $pfxid = unset ] ; then
     die "error [invalid prefix: $prefix]"
 fi
 prefixfn=${prefix/\//-}
+pfxdot1=$(echo $prefix | sed "s|\.0/|.1/|")
 
 subcmd=$1
 case $subcmd in
@@ -138,6 +139,9 @@ announce)
         do_announce $mux
     fi
     echo "configure \"$bird_cfgs/bird.conf\"" | birdc -s $bird_sock
+    if ! ip addr add $pfxdot1 dev lo ; then
+        echo "error adding addr $pfxdot1 to loopback interface"
+    fi
     ;;
 withdraw)
     if [ $mux = all ] ; then
@@ -148,6 +152,9 @@ withdraw)
         rm -f $bird_filters/export_${mux}_$prefixfn.conf
     fi
     echo "configure \"$bird_cfgs/bird.conf\"" | birdc -s $bird_sock
+    if ! ip addr del $pfxdot1 dev lo ; then
+        echo "error removing addr $pfxdot1 from loopback interface"
+    fi
     ;;
 *)
     usage

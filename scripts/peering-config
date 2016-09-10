@@ -9,6 +9,7 @@ export openvpn_cfgs="$progdir/configs/openvpn"
 
 export mux2dev_db="$varrun/mux2dev.txt"
 export prefix_db="$progdir/prefixes.txt"
+export bird_kernel_table=151
 
 load_mux2dev () {
     declare -gA mux2dev

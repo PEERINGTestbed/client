@@ -30,6 +30,20 @@ EOF
     exit 0
 }
 
+remove_ip_rules () {
+    table=$1
+    while ip rule show | grep "$table:" > /dev/null ; do
+        ip rule del pref $table
+    done
+}
+
+add_ip_rules () {
+    table=$1
+    cat $prefix_db | while read pfx ; do
+        ip rule add from $pfx table $table pref $table
+    done
+}
+
 test $# -ge 1 || usage
 test $EUID -eq 0 || die "The BIRD BGP daemon requires root access."
 
@@ -44,6 +58,8 @@ start)
     test -S $bird_sock && die "error [BIRD control socket exists]"
     mkdir -p $bird_routes
     mkdir -p $bird_filters
+    remove_ip_rules $bird_kernel_table
+    add_ip_rules $bird_kernel_table
     bird -c $bird_cfgs/bird.conf -s $bird_sock
     ;;
 status)
@@ -59,6 +75,7 @@ stop)
         fi
         rm -f $bird_sock
     fi
+    remove_ip_rules $bird_kernel_table
     ;;
 adv)
     test $# -ge 2 || usage
