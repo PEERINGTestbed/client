@@ -42,6 +42,12 @@ add_ip_rules () {
     cat $prefix_db | while read pfx ; do
         ip rule add from $pfx table $table pref $table
     done
+    if ! ip route add unreachable default table $table > /dev/null ; then
+        if [ $? -ne 2 ] ; then
+            echo "error encountered while blackholing default route on table $table."
+            echo "please check that 'ip route show table $table' has 'unreachable default'."
+        fi
+    fi
 }
 
 test $# -ge 1 || usage
