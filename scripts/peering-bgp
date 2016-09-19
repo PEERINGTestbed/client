@@ -62,6 +62,8 @@ cli)
     ;;
 start)
     test -S $bird_sock && die "error [BIRD control socket exists]"
+    rm -rf $bird_routes
+    rm -rf $bird_filters
     mkdir -p $bird_routes
     mkdir -p $bird_filters
     remove_ip_rules $bird_kernel_table
