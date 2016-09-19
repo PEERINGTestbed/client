@@ -40,20 +40,20 @@ Usage: peering prefix announce|withdraw [-m mux] [-p poison|-o origin]
 Options can be specified in any order, but announce|withdraw must
 be the first argument and prefix must be the last.
 
-announce    Announce prefix from one or all muxes.
-withdraw    Withdraw prefix from one or all muxes.
+announce    Announce prefix to one or all muxes.
+withdraw    Withdraw prefix to one or all muxes.
 
--m mux      Control which mux the prefix should be announced to
-            or withdrawn from.  [default: $mux]
+-m mux      Control to which mux the prefix should be announced
+            or withdrawn.  [default: $mux]
 -p asn      Prepend announcement to include the given ASN in the
             AS-path and trigger BGP loop prevention (poisoning).
             Also known as BGP poisoning.  [default: do not poison]
--o asn      Prepend annoucnement to include the given ASN as the
+-o asn      Prepend announcement to include the given ASN as the
             origin of the announcement.  [default: keep unchanged]
             Cannot be combined with -p.
 -c id       Attach community (47065,id) to the announcement.  This
-            will let the announcement through peer with the given
-            id.  May be added multiple times to announce from
+            will let the announcement through the peer with the given
+            id.  May be added multiple times to announce to
             multiple peers.  [default: announce to all peers]
             (see https://peering.usc.edu/peers for the list of peers)
 
