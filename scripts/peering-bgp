@@ -30,6 +30,11 @@ EOF
     exit 0
 }
 
+reset_config () {
+    rm -rf $bird_routes
+    rm -rf $bird_filters
+}
+
 remove_ip_rules () {
     table=$1
     while ip rule show | grep "$table:" > /dev/null ; do
@@ -56,8 +61,7 @@ cli)
     ;;
 start)
     test -S $bird_sock && die "error [BIRD control socket exists]"
-    rm -rf $bird_routes
-    rm -rf $bird_filters
+    reset_config
     mkdir -p $bird_routes
     mkdir -p $bird_filters
     remove_ip_rules $bird_kernel_table
@@ -69,8 +73,6 @@ status)
     echo "show protocols" | birdc -s $bird_sock
     ;;
 stop)
-    rm -rf $bird_routes
-    rm -rf $bird_filters
     if [ -S $bird_sock ] ; then
         if ! $(echo "down" | birdc -s $bird_sock > /dev/null) ;  then
             echo "BIRD control socket in bad state, deleting."
@@ -78,6 +80,7 @@ stop)
         rm -f $bird_sock
     fi
     remove_ip_rules $bird_kernel_table
+    reset_config
     ;;
 adv)
     test $# -ge 2 || usage
