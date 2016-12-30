@@ -35,10 +35,11 @@ def show_protocols(reader, outfd):  # {{{
         result['details'] = v
         results.append(result)
     json.dump(results, outfd, indent=2)
+    return results
 # }}}
 
 
-def show_route(reader, outfd):  # {{{
+def show_route(reader, outfd, return_json=False):  # {{{
     outfd.write('[\n')
     routes = list()
     network = None
@@ -58,6 +59,8 @@ def show_route(reader, outfd):  # {{{
         json.dump(rt, outfd, indent=2)
         if line:
             outfd.write(',\n')
+        if return_json:
+            routes.append(rt)
     outfd.write(']\n')
     return routes
 # }}}
