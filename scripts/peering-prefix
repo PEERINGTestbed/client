@@ -104,8 +104,8 @@ fi
 if [[ $origin -ne 0 ]] ; then
     if [[ ! $origin =~ [0-9]+ ]] ; then
         die "error [origin AS should be a number]"
-    elif [[ $origin -gt 65535 || $origin -lt 1 ]] ; then
-        die "error [origin AS not a  16-bit number]"
+    elif [[ $origin -lt 1 ]] ; then
+        die "error [origin AS not a positive nonzero number]"
     fi
 fi
 
