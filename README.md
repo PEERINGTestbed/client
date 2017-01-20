@@ -79,7 +79,12 @@ We support five operations to interact with BIRD:
 
 ## Controlling prefix announcements
 
-`usage: peering prefix announce|withdraw [-m mux] [-p poison] prefix`
+```
+usage: peering prefix announce|withdraw [-m mux]
+                                        [-p poison | [-P prepend] [-o origin]]
+                                        [-c id1] ... [-c idN]
+                                        prefix
+```
 
 We also provide support for announcing and withdrawing PEERING
 prefixes.  Be sure to use only prefixes allocated to you, or your
@@ -92,9 +97,14 @@ or withdrawing prefixes, we support the following options:
 
 * `[-p asn]`: poison a given ASN, i.e., prepend the announcement to
   include `asn` in the AS-path and trigger BGP loop prevention.
+  Also known as BGP poisoning.  [default: do not poison]
+
+* `[-P N]`: prepend the origin ASN `N` times.  Cannot be combined
+  with `-p`, can be combined with `-o`.  [default: 0]
 
 * `[-o asn]`: change the origin ASN, i.e., the first ASN in the AS-path,
-  to `asn`.  Cannot be combined with `-p`.
+  to `asn`.  Cannot be combined with `-p`, sets -P to 1 if not specified.
+  [default: unchanged (47065)]
 
 * `[-c id]`: add community `(47065,id)` to the announcement, making
   sending the announcement through the peer identified by `id` only.
