@@ -7,19 +7,41 @@ set -eu
 
 mux=all
 poison=0
+prepend=0
 origin=0
 prefix=invalid
 communities=()
 
-do_announce () {
+
+check_valid_asn () {  # {{{
+    local asn=$1
+    if [[ $asn -ne 0 ]] ; then
+        if [[ ! $asn =~ [0-9]+ ]] ; then
+            die "error [AS ($asn) should be a number]"
+        elif [[ $asn -lt 1 ]] ; then
+            die "error [AS ($asn) should be a positive number]"
+        fi
+    fi
+}  # }}}
+
+
+do_announce () {  #{{{
     local mux=$1
-    filterfn="$bird_filters/export_${mux}_$prefixfn.conf"
+    local filterfn="$bird_filters/export_${mux}_$prefixfn.conf"
     echo "if ( net = $prefix ) then {" > $filterfn
+    if [ $prepend -eq 0 -a $origin -ne 0 ] ; then
+        prepend=1
+    fi
     if [ $poison -ne 0 ] ; then
-    echo "    bgp_path.prepend(47065);" >> $filterfn
-    echo "    bgp_path.prepend($poison);" >> $filterfn
-    elif [ $origin -ne 0 ] ; then
-    echo "    bgp_path.prepend($origin);" >> $filterfn
+        if [ $prepend -ne 0 ] ; then die "error [-p and \$prepend != 0]" ; fi
+        if [ $origin -ne 0 ] ; then die "error [-p and \$origin != 0]" ; fi
+        echo "    bgp_path.prepend(47065);" >> $filterfn
+        echo "    bgp_path.prepend($poison);" >> $filterfn
+    elif [ $prepend -ne 0 ] ; then
+        if [ $origin -eq 0 ] ; then origin=47065 ; fi
+        for _i in $(seq 1 $prepend) ; do
+            echo "    bgp_path.prepend($origin);" >> $filterfn
+        done
     fi
     if [[ ${communities[@]:-undef} != "undef" ]] ; then
         for comm in "${communities[@]}" ; do
@@ -30,12 +52,15 @@ do_announce () {
     echo "}" >> $filterfn
     filterfn=$bird_routes/$prefixfn
     echo "route $prefix unreachable;" > $filterfn
-}
+}  #}}}
 
-usage () {
+
+usage () {  # {{{
     cat <<-EOF
-Usage: peering prefix announce|withdraw [-m mux] [-p poison|-o origin]
-                                        [-c id1] ... [-c idN] prefix
+Usage: peering prefix announce|withdraw [-m mux]
+                                        [-p poison | [-P prepend] [-o origin]]
+                                        [-c id1] ... [-c idN]
+                                        prefix
 
 Options can be specified in any order, but announce|withdraw must
 be the first argument and prefix must be the last.
@@ -48,9 +73,11 @@ withdraw    Withdraw prefix to one or all muxes.
 -p asn      Prepend announcement to include the given ASN in the
             AS-path and trigger BGP loop prevention (poisoning).
             Also known as BGP poisoning.  [default: do not poison]
+-P N        Prepend origin (given with -o) N times.  Cannot be
+            combined with -p; can be combined with -o.  [default: 0]
 -o asn      Prepend announcement to include the given ASN as the
-            origin of the announcement.  [default: keep unchanged]
-            Cannot be combined with -p.
+            origin of the announcement.  Cannot be combined with -p;
+            sets -P to 1 if not specified.  [default: unchanged (47065)]
 -c id       Attach community (47065,id) to the announcement.  This
             will let the announcement through the peer with the given
             id.  May be added multiple times to announce to
@@ -63,16 +90,18 @@ prefix      Choose the prefix to operate on.  Make sure the prefix
 
 EOF
     exit 0
-}
+}  # }}}
+
 
 test $# -ge 2 || usage
 test $EUID -eq 0 || die "The BIRD BGP daemon requires root access."
 
-OPTIND=2
-while getopts "m:p:o:c:" opt $* ; do
+OPTIND=2  # {{{
+while getopts "m:p:P:o:c:" opt $* ; do
 case $opt in
 m)  mux=$OPTARG ;;
 p)  poison=$OPTARG ;;
+P)  prepend=$OPTARG ;;
 o)  origin=$OPTARG ;;
 c)
     if [[ $OPTARG -gt 65535 || $OPTARG -lt 1 ]] ; then
@@ -82,7 +111,8 @@ c)
     ;;
 *)  usage
 esac
-done
+done  # }}}
+
 
 declare -A mux2dev
 while read fmux fdev ; do
@@ -93,24 +123,15 @@ if [ $mux != all -a ${mux2dev[$mux]:-unset} = unset ] ; then
     die "error [mux unknown: $mux]"
 fi
 
-if [[ $poison -ne 0 ]] ; then
-    if [[ ! $poison =~ [0-9]+ ]] ; then
-        die "error [poisoned AS should be a number]"
-    elif [[ $poison -gt 65535 || $poison -lt 1 ]] ; then
-        die "error [poisoned AS not a  16-bit number]"
-    fi
+check_valid_asn $poison
+check_valid_asn $origin
+
+if [[ $prepend -lt 0 || $prepend -gt 3 ]] ; then
+    die "error [can prepend only 1, 2, or 3 times]"
 fi
 
-if [[ $origin -ne 0 ]] ; then
-    if [[ ! $origin =~ [0-9]+ ]] ; then
-        die "error [origin AS should be a number]"
-    elif [[ $origin -lt 1 ]] ; then
-        die "error [origin AS not a positive nonzero number]"
-    fi
-fi
-
-if [[ $poison -ne 0 && $origin -ne 0 ]] ; then
-    die "error [cannot -p and -o at the same time]"
+if [[ $poison -ne 0 && ($origin -ne 0 || $prepend -ne 0) ]] ; then
+    die "error [cannot -p with -o or -P]"
 fi
 
 declare -A pfx2id
@@ -127,6 +148,7 @@ if [ $pfxid = unset ] ; then
 fi
 prefixfn=${prefix/\//-}
 pfxdot1=$(echo $prefix | sed "s|\.0/|.1/|")
+
 
 subcmd=$1
 case $subcmd in
