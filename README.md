@@ -143,3 +143,10 @@ more complex announcements (e.g., make BGP announcements with BGP
 communities attached), these scripts provide a useful starting
 point.
 
+## Python library
+
+The `peering.py` module can be imported into Python programs to
+programmatically control announcements.  It is tested in `python3`
+and depends on `jsonschema` and `jinja2`.  Announcements are
+specified in JSON; the JSON schema is described in
+`configs/announcement_schema.json`.
