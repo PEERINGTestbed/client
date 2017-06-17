@@ -1,0 +1,18 @@
+{
+  "184.164.236.0/24": {
+    "announce": [
+    {
+      "muxes": ["amsterdam01", "ufmg01"],
+      "peers": [168, 60],
+      "origin": 47065,
+      "prepend": [73, 74]
+    },
+    {
+      "muxes": ["gatech01"]
+    },
+    {
+      "muxes": ["isi01"]
+    }
+    ]
+  }
+}

@@ -50,7 +50,10 @@ class AnnouncementController(object):
                 self.announce(prefix, spec)
 
     def withdraw(self, prefix, mux):
-        os.unlink(self.__cfg_fpath(prefix, mux))
+        try:
+            os.unlink(self.__config_file(prefix, mux))
+        except FileNotFoundError:
+            pass
 
     def announce(self, prefix, spec):
         for mux in spec['muxes']:
@@ -63,11 +66,14 @@ class AnnouncementController(object):
                                 stdin=subprocess.PIPE,
                                 stdout=subprocess.DEVNULL,
                                 stderr=subprocess.DEVNULL)
-        _stdout, _stderr = proc.communicate('configure\n')
+        _stdout, _stderr = proc.communicate(b'configure\n')
 
 
 if __name__ == '__main__':
-    controller = AnnouncementController('./bird-test', None, 'announcement_schema.json')
-    with open(sys.argv[1], 'r') as fd:
-        announcement = json.load(fd)
-    controller.update_config(announcement)
+    with open(sys.argv[1], 'r') as announcement_json_fd:
+        announcement = json.load(announcement_json_fd)
+    bird_cfg_dir = 'configs/bird'
+    bird_sock = 'var/bird.ctl'
+    schema_fn = 'configs/announcement_schema.json'
+    ctrl = AnnouncementController(bird_cfg_dir, bird_sock, schema_fn)
+    ctrl.deploy(announcement)
