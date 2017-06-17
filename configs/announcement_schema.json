@@ -1,0 +1,85 @@
+{
+  "title": "PrefixAnnouncement",
+  "type": "object",
+  "minProperties": 1,
+  "additionalProperties": {
+    "$ref": "#/definitions/prefixAnnouncement"
+  },
+  "definitions": {
+    "prefix": {
+      "type": "string",
+      "pattern": "^[0-9.]+/[0-9]+$"
+    },
+    "ASN": {
+      "type": "number",
+      "minimum": 1,
+      "maximum": 4294967295
+    },
+    "allocatedPrefix": {
+      "$ref": "#/definitions/prefix",
+      "enum": ["184.164.236.0/24"]
+    },
+    "peeringASN": {
+      "$ref": "#/definitions/ASN",
+      "enum": [47065, 33207, 61574, 61575, 61576, 263842, 263843, 263844]
+    },
+    "peeringMux": {
+      "type": "string",
+      "enum": ["amsterdam01", "clemson01", "cornell01", "gatech01", "grnet01",
+        "isi01", "phoenix01", "seattle01", "ufmg01", "uw01"
+      ]
+    },
+    "announcement": {
+      "type": "object",
+      "properties": {
+        "muxes": {
+          "type": "array",
+          "minItems": 1,
+          "uniqueItems": true,
+          "items": {
+            "$ref": "#/definitions/peeringMux"
+          }
+        },
+        "peers": {
+          "type": "array",
+          "uniqueItems": true,
+          "items": {
+            "type": "number"
+          }
+        },
+        "prepend": {
+          "type": "array",
+          "minItems": 1,
+          "maxItems": 5,
+          "items": {
+            "$ref": "#/definitions/ASN"
+          }
+        },
+        "origin": {
+          "$ref": "#/definitions/peeringASN"
+        }
+      },
+      "required": ["muxes"]
+    },
+    "prefixAnnouncement": {
+      "type": "object",
+      "minProperties": 1,
+      "properties": {
+        "withdraw": {
+          "type": "array",
+          "items": {
+            "$ref": "#/definitions/peeringMux"
+          }
+        },
+        "announce": {
+          "type": "array",
+          "minItems": 1,
+          "items": {
+            "$ref": "#/definitions/announcement"
+          }
+        }
+      }
+    }
+  }
+}
+

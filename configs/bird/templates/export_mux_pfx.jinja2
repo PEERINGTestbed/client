@@ -1,0 +1,12 @@
+if ( net = {{prefix}} ) then {
+    {%- if spec.get('origin') %}
+    bgp_path.prepend({{spec.get('origin')}});
+    {%- for asn in spec.get('prepend', []) | reverse %}
+    bgp_path.prepend({{asn}});
+    {%- endfor %}
+    {%- endif %}
+    {%- for c in spec.get('peers', []) %}
+    bgp_community.add((47065,{{c}}));
+    {%- endfor %}
+    accept;
+}
