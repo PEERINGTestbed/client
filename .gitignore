@@ -1,2 +1,4 @@
 prefixes.txt
 var
+configs/bird/prefix-filters
+configs/bird/route-announcements
