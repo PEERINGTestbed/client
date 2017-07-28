@@ -109,9 +109,9 @@ or withdrawing prefixes, we support the following options:
 * `[-c id]`: add community `(47065,id)` to the announcement, making
   sending the announcement through the peer identified by `id` only.
   Can be used multiple times to send announcements through multiple
-  peers.  Click [here][1] for a list of PEERING peers.
+  peers.  Click [here][2] for a list of PEERING peers.
 
-  [1]: https://peering.usc.edu/peers/
+  [2]: https://peering.usc.edu/peers/
 
 ## Guidelines
 
@@ -142,6 +142,18 @@ do not cover all possible uses of PEERING.  If you need to perform
 more complex announcements (e.g., make BGP announcements with BGP
 communities attached), these scripts provide a useful starting
 point.
+
+## More informations
+
+More informations about PEERING configuration:
+
+* [Client data plane.][3]
+* [Mux data plane.][4]
+* Additional information can be found [here][5].
+
+[3]: https://github.com/PEERINGTestbed/client/wiki/Client-data-plane/
+[4]: https://github.com/PEERINGTestbed/client/wiki/Mux-data-plane/
+[5]: https://github.com/PEERINGTestbed/client/wiki/
 
 ## Python library
 
