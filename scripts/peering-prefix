@@ -11,6 +11,7 @@ prepend=0
 origin=0
 prefix=invalid
 communities=()
+full_communities=()
 
 
 check_valid_asn () {  # {{{
@@ -48,6 +49,11 @@ do_announce () {  #{{{
             echo "    bgp_community.add((47065,$comm));" >> $filterfn;
         done
     fi
+    if [[ ${full_communities[@]:-undef} != "undef" ]] ; then
+	for comm in "${full_communities[@]}" ; do
+            echo "    bgp_community.add(($comm));" >> $filterfn;
+        done
+    fi
     echo "    accept;" >> $filterfn
     echo "}" >> $filterfn
     filterfn=$bird_routes/$prefixfn
@@ -60,6 +66,7 @@ usage () {  # {{{
 Usage: peering prefix announce|withdraw [-m mux]
                                         [-p poison | [-P prepend] [-o origin]]
                                         [-c id1] ... [-c idN]
+                                        [-C id1,id2] ... [-C idX,idY]
                                         prefix
 
 Options can be specified in any order, but announce|withdraw must
@@ -78,11 +85,29 @@ withdraw    Withdraw prefix to one or all muxes.
 -o asn      Prepend announcement to include the given ASN as the
             origin of the announcement.  Cannot be combined with -p;
             sets -P to 1 if not specified.  [default: unchanged (47065)]
--c id       Attach community (47065,id) to the announcement.  This
-            will let the announcement through the peer with the given
-            id.  May be added multiple times to announce to
-            multiple peers.  [default: announce to all peers]
-            (see https://peering.usc.edu/peers for the list of peers)
+
+-c id       Attach community (47065,id) to the announcement.  This will 
+            let the announcement through the peer with the given id.
+            Must be added multiple times to announce to multiple
+            peers.  [default: announce to all peers only if no
+            communities attached] (see https://peering.usc.edu/peers
+            for the list of peers).  If id == 65535, PEERING will send
+            to all peers.  Can be combined with the -C option but
+            only a maximum of 20 communities are allowed.
+
+-C id1,id2  Attach community (id1,id2) to the announcement.  If the
+
+            community is in the form of (47065,id2) the effect is
+            identical to the -c option where the community lets the
+            announcement through to the peer with id2.  
+
+            Only valid PEERING 16-bit AS numbers are allowed for id1;
+            the only exception is for the well-known communities:
+            (65535,65281 - 65284), which are also accepted.
+
+            May be combined with the -c option to selectively
+            advertise to peers but only a maximum of 20 communities
+            are allowed.
 
 prefix      Choose the prefix to operate on.  Make sure the prefix
             has been allocated to you, or your announcement will be
@@ -97,7 +122,7 @@ test $# -ge 2 || usage
 test $EUID -eq 0 || die "The BIRD BGP daemon requires root access."
 
 OPTIND=2  # {{{
-while getopts "m:p:P:o:c:" opt $* ; do
+while getopts "m:p:P:o:c:C:" opt $* ; do
 case $opt in
 m)  mux=$OPTARG ;;
 p)  poison=$OPTARG ;;
@@ -108,6 +133,15 @@ c)
         die "error [-c id accepts only 16-bit numbers]"
     fi
     communities+=($OPTARG)
+    ;;
+C)
+    for comm in $(echo $OPTARG | tr "," "\n")
+    do
+	if [[ $comm -gt 65535 || $comm -lt 1 ]] ; then
+            die "error [-c id accepts only 16-bit numbers]"
+	fi
+    done
+    full_communities+=($OPTARG)
     ;;
 *)  usage
 esac
