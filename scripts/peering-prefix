@@ -87,19 +87,23 @@ withdraw    Withdraw prefix to one or all muxes.
             sets -P to 1 if not specified.  [default: unchanged (47065)]
 
 -c id       Attach community (47065,id) to the announcement.  This will 
-            let the announcement through the peer with the given id.
-            Must be added multiple times to announce to multiple
-            peers.  [default: announce to all peers only if no
+            let the announcement through the peer with the given id
+            (ids are < 1024).  May be added multiple times to announce
+            to multiple peers, but each peer will only see their
+            respective community (e.g.: -c 1 means Peer 1 receives
+            (47065,1)).  [default: announce to all peers only if no
             communities attached] (see https://peering.usc.edu/peers
-            for the list of peers).  If id == 65535, PEERING will send
-            to all peers.  Can be combined with the -C option but
-            only a maximum of 20 communities are allowed.
+            for the list of peers).  Can be combined with the -C
+            option but only a maximum of 20 communities will be
+            advertised.  If no communities in the form of
+            (47065,id<=1024) are included, announce to all peers.
 
 -C id1,id2  Attach community (id1,id2) to the announcement.  If the
-
             community is in the form of (47065,id2) the effect is
-            identical to the -c option where the community lets the
-            announcement through to the peer with id2.  
+            identical to the -c option.  Similarly, if any communities
+            are in the form (47065,id2<=1024) the mux will only
+            advertise to the peer with id2.  May be added multiple
+            times to announce to multiple peers.
 
             Only valid PEERING 16-bit AS numbers are allowed for id1;
             the only exception is for the well-known communities:
@@ -138,7 +142,7 @@ C)
     for comm in $(echo $OPTARG | tr "," "\n")
     do
 	if [[ $comm -gt 65535 || $comm -lt 1 ]] ; then
-            die "error [-c id accepts only 16-bit numbers]"
+            die "error [-C id1,id2 accepts only 16-bit numbers]"
 	fi
     done
     full_communities+=($OPTARG)
