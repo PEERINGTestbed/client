@@ -161,4 +161,6 @@ The `peering.py` module can be imported into Python programs to
 programmatically control announcements.  It is tested in `python3`
 and depends on `jsonschema` and `jinja2`.  Announcements are
 specified in JSON; the JSON schema is described in
-`configs/announcement_schema.json`.
+`configs/announcement_schema.json`.  You should edit the
+`allocatedPrefixes` entry in the JSON schema to the prefixes
+allocated to your experiment.
