@@ -88,7 +88,9 @@ withdraw    Withdraw prefix to one or all muxes.
 
 -c id       Attach community (47065,id) to the announcement.  This will 
             let the announcement through the peer with the given id
-            (ids are < 1024).  May be added multiple times to announce
+            (id <= 1000) or specifically deny advertising to a peer
+            (if 1000 < id + 1000 <= 2000; e.g. to deny advertising to
+            peer 1: -c 1001).  May be added multiple times to announce
             to multiple peers, but each peer will only see their
             respective community (e.g.: -c 1 means Peer 1 receives
             (47065,1)).  [default: announce to all peers only if no
@@ -98,12 +100,13 @@ withdraw    Withdraw prefix to one or all muxes.
             advertised.  If no communities in the form of
             (47065,id<=1024) are included, announce to all peers.
 
--C id1,id2  Attach community (id1,id2) to the announcement.  If the
+-C id1,id2 Attach community (id1,id2) to the announcement.  If the
             community is in the form of (47065,id2) the effect is
             identical to the -c option.  Similarly, if any communities
-            are in the form (47065,id2<=1024) the mux will only
-            advertise to the peer with id2.  May be added multiple
-            times to announce to multiple peers.
+            are in the form (47065,id2) the mux will only affect the
+            advertisement to the peer with id2 (advertise if id2 <=
+            1000, do not advertise if 1000 < id2 <= 2000) .  May be
+            added multiple times to  announce to multiple peers.
 
             Only valid PEERING 16-bit AS numbers are allowed for id1;
             the only exception is for the well-known communities:
