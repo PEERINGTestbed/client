@@ -66,7 +66,7 @@ usage () {  # {{{
 Usage: peering prefix announce|withdraw [-m mux]
                                         [-p poison | [-P prepend] [-o origin]]
                                         [-c id1] ... [-c idN]
-                                        [-C id1,id2] ... [-C idX,idY]
+                                        [-C as1,c1] ... [-C asX,cY]
                                         prefix
 
 Options can be specified in any order, but announce|withdraw must
@@ -95,12 +95,9 @@ withdraw    Withdraw prefix to one or all muxes.
             respective community (e.g.: -c 1 means Peer 1 receives
             (47065,1)).  [default: announce to all peers only if no
             communities attached] (see https://peering.usc.edu/peers
-            for the list of peers).  Can be combined with the -C
-            option but only a maximum of 20 communities will be
-            advertised.  If no communities in the form of
-            (47065,id<=1024) are included, announce to all peers.
+            for the list of peers).  Can be combined with the -C.
 
--C id1,id2 Attach community (id1,id2) to the announcement.  If the
+-C as1,c2   Attach community (id1,id2) to the announcement.  If the
             community is in the form of (47065,id2) the effect is
             identical to the -c option.  Similarly, if any communities
             are in the form (47065,id2) the mux will only affect the
@@ -114,7 +111,7 @@ withdraw    Withdraw prefix to one or all muxes.
 
             May be combined with the -c option to selectively
             advertise to peers but only a maximum of 20 communities
-            are allowed.
+            (outside of the range 47065,c <= 2000) are allowed.
 
 prefix      Choose the prefix to operate on.  Make sure the prefix
             has been allocated to you, or your announcement will be
