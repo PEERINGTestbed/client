@@ -97,21 +97,22 @@ withdraw    Withdraw prefix to one or all muxes.
             communities attached] (see https://peering.usc.edu/peers
             for the list of peers).  Can be combined with the -C.
 
--C as1,c2   Attach community (id1,id2) to the announcement.  If the
-            community is in the form of (47065,id2) the effect is
-            identical to the -c option.  Similarly, if any communities
-            are in the form (47065,id2) the mux will only affect the
-            advertisement to the peer with id2 (advertise if id2 <=
-            1000, do not advertise if 1000 < id2 <= 2000) .  May be
-            added multiple times to  announce to multiple peers.
+-C as1,c2   Attach community (as1,c2) to the announcement.  Only valid 
+            PEERING 16-bit AS numbers are allowed for as1, while c2
+            can be any number 1 <= c2 <= 65535.  Additionally,
+            communities in the range (65535,65281 - 65284) (as defined
+            in RFC 1997 & 3765) are also accepted.
 
-            Only valid PEERING 16-bit AS numbers are allowed for id1;
-            the only exception is for the well-known communities:
-            (65535,65281 - 65284), which are also accepted.
+            May also be combined with the -c option to selectively
+            advertise to peers.  If the community specified in the -C
+            option is in the form of 47065,c2 the effect is identical
+            to the -c option.  
 
-            May be combined with the -c option to selectively
-            advertise to peers but only a maximum of 20 communities
-            (outside of the range 47065,c <= 2000) are allowed.
+            When attaching communities, a total of one community in
+            the format 47065,id plus a maximum of 20 communities
+            (outside of the range 47065,c2 <= 2000) can be attached to
+            an advertisement.  If the number of the latter communities
+            exceeds 20, no communities will be attached.
 
 prefix      Choose the prefix to operate on.  Make sure the prefix
             has been allocated to you, or your announcement will be
