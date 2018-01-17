@@ -34,7 +34,7 @@ mux_status_check() {
     if [ ! -s $statfn ] ; then
         mstat="down"
     else
-        mstat=$(head -n 1 $statfn | cut -d " " -f 1,2)
+        mstat=$(head -n 1 $statfn)
     fi
 }
 
