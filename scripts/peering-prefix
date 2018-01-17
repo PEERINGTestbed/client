@@ -44,13 +44,13 @@ do_announce () {  #{{{
             echo "    bgp_path.prepend($origin);" >> $filterfn
         done
     fi
-    if [[ ${communities[@]:-undef} != "undef" ]] ; then
+    if [[ ${communities[@]:-undef} != undef ]] ; then
         for comm in "${communities[@]}" ; do
             echo "    bgp_community.add((47065,$comm));" >> $filterfn;
         done
     fi
-    if [[ ${full_communities[@]:-undef} != "undef" ]] ; then
-	for comm in "${full_communities[@]}" ; do
+    if [[ ${full_communities[@]:-undef} != undef ]] ; then
+        for comm in "${full_communities[@]}" ; do
             echo "    bgp_community.add(($comm));" >> $filterfn;
         done
     fi
@@ -178,19 +178,36 @@ fi
 
 declare -A pfx2id
 while read pfx ; do
-    pfx2id[$pfx]=enabled
+    pfx2id[$pfx]=v4
 done < $prefix_db
+while read pfx ; do
+    pfx2id[$pfx]=v6
+done < $prefix6_db
 
 prefix=${!OPTIND:-unset}
 pfxid=${pfx2id[$prefix]:-unset}
-if [ $pfxid = unset ] ; then
+if [[ $pfxid = unset ]] ; then
     echo "list of configured prefixes:"
-    cut -d " " -f 1 $progdir/prefixes.txt
+    cat $prefix_db $prefix6_db
     die "error [invalid prefix: $prefix]"
 fi
-prefixfn=${prefix/\//-}
-pfxdot1=$(echo $prefix | sed "s|\.0/|.1/|")
 
+prefixfn=${prefix/\//-}
+pfxdot1=${prefix/\.0\//.1\/}
+minus6=""
+if [[ $prefix =~ : ]] ; then
+    bird_exec=$bird6_exec
+    birdc_exec=$birdc6_exec
+    bird_sock=$bird6_sock
+    bird_cfgs=$bird6_cfgs
+    bird_cfgfile=$bird6_cfgfile
+    bird_routes=$bird6_routes
+    bird_filters=$bird6_filters
+    prefixfn=${prefixfn//:/i}
+    pfxdot1=${prefix/::\//::1\/}
+    minus6="-6"
+    # prefix_db=$prefix6_db
+fi
 
 subcmd=$1
 case $subcmd in
@@ -202,8 +219,8 @@ announce)
     else
         do_announce $mux
     fi
-    echo "configure \"$bird_cfgs/bird.conf\"" | birdc -s $bird_sock
-    if ! ip addr add $pfxdot1 dev lo ; then
+    echo "configure \"$bird_cfgfile\"" | $birdc_exec -s $bird_sock
+    if ! ip $minus6 addr add $pfxdot1 dev lo ; then
         echo "error adding addr $pfxdot1 to loopback interface"
     fi
     ;;
@@ -215,8 +232,8 @@ withdraw)
     else
         rm -f $bird_filters/export_${mux}_$prefixfn.conf
     fi
-    echo "configure \"$bird_cfgs/bird.conf\"" | birdc -s $bird_sock
-    if ! ip addr del $pfxdot1 dev lo ; then
+    echo "configure \"$bird_cfgfile\"" | $birdc_exec -s $bird_sock
+    if ! ip $minus6 addr del $pfxdot1 dev lo ; then
         echo "error removing addr $pfxdot1 from loopback interface"
     fi
     ;;

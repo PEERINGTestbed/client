@@ -8,7 +8,8 @@ local_ip=$4
 remote_ip=$5
 init_restart=$6
 
-echo "up $1 $2 $3 $4 $5 $6" >> var/up-down.log
-echo "up $local_ip" > var/$dev.status
+echo "cmdline $@" >> var/up-down.log
+echo "$(set)" >> var/up-down.log
+echo "up $local_ip $ifconfig_ipv6_local" > var/$dev.status
 
 # echo 0 > /proc/sys/net/ipv4/conf/$dev/rp_filter

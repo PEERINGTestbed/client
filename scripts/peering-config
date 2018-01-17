@@ -1,15 +1,27 @@
 export varrun="$progdir/var"
 
+export bird_exec="bird"
+export birdc_exec="birdc"
 export bird_sock="$varrun/bird.ctl"
 export bird_cfgs="$progdir/configs/bird"
+export bird_cfgfile="$bird_cfgs/bird.conf"
 export bird_routes="$bird_cfgs/route-announcements"
 export bird_filters="$bird_cfgs/prefix-filters"
+
+export bird6_exec="bird6"
+export birdc6_exec="birdc6"
+export bird6_sock="$varrun/bird6.ctl"
+export bird6_cfgs="$progdir/configs/bird6"
+export bird6_cfgfile="$bird6_cfgs/bird6.conf"
+export bird6_routes="$bird6_cfgs/route-announcements"
+export bird6_filters="$bird6_cfgs/prefix-filters"
 
 export openvpn_cfgs="$progdir/configs/openvpn"
 
 export mux2dev_db="$varrun/mux2dev.txt"
 export prefix_db="$progdir/prefixes.txt"
-export bird_kernel_table=151
+export prefix6_db="$progdir/prefixes6.txt"
+export kernel_table=151
 
 load_mux2dev () {
     declare -gA mux2dev
@@ -46,7 +58,15 @@ fi
 
 if [ ! -s $prefix_db ] ; then
     echo "error: $prefix_db not found."
-    die "list the prefixes you will announce in $prefix_db"
+    echo "list the IPv4 prefixes you will announce in $prefix_db."
+    die "create an empty file if you will not announce IPv4 prefixes."
 fi
+
+if [ ! -s $prefix6_db ] ; then
+    echo "error: $prefix6_db not found."
+    echo "list the IPv6 prefixes you will announce in $prefix6_db."
+    die "create an empty file if you will not announce IPv6 prefixes."
+fi
+
 
 # vim: ft=sh

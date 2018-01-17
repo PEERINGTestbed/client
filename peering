@@ -7,11 +7,13 @@ export progdir=$(cd $(dirname $0); pwd -P)
 
 usage () {
     cat <<-EOF
-usage: $0 openvpn|bgp|prefix
+usage: $0 openvpn|bgp|bgp6|prefix
 
 openvpn     Control OpenVPN tunnels
 
-bgp         Control BGP router (BIRD)
+bgp         Control IPv4 BGP router (BIRD)
+
+bgp6        Control IPv6 BGP router (BIRD6)
 
 prefix      Control prefix announcements
 
@@ -29,6 +31,10 @@ openvpn)
 bgp)
     shift
     $progdir/scripts/peering-bgp $@
+    ;;
+bgp6)
+    shift
+    $progdir/scripts/peering-bgp v6 $@
     ;;
 prefix)
     shift
