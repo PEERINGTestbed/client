@@ -97,6 +97,9 @@ withdraw    Withdraw prefix to one or all muxes.
             communities attached] (see https://peering.usc.edu/peers
             for the list of peers).  Can be combined with the -C.
 
+            Community (47065,0) is a special community to enable
+            advertising a route to all peers across AL2S.
+
 -C as1,c2   Attach community (as1,c2) to the announcement.  Only valid 
             PEERING 16-bit AS numbers are allowed for as1, while c2
             can be any number 1 <= c2 <= 65535.  Additionally,
@@ -134,7 +137,7 @@ p)  poison=$OPTARG ;;
 P)  prepend=$OPTARG ;;
 o)  origin=$OPTARG ;;
 c)
-    if [[ $OPTARG -gt 65535 || $OPTARG -lt 1 ]] ; then
+    if [[ $OPTARG -gt 65535 || $OPTARG -lt 0 ]] ; then
         die "error [-c id accepts only 16-bit numbers]"
     fi
     communities+=($OPTARG)
@@ -142,7 +145,7 @@ c)
 C)
     for comm in $(echo $OPTARG | tr "," "\n")
     do
-	if [[ $comm -gt 65535 || $comm -lt 1 ]] ; then
+	if [[ $comm -gt 65535 || $comm -lt 0 ]] ; then
             die "error [-C id1,id2 accepts only 16-bit numbers]"
 	fi
     done
