@@ -62,7 +62,7 @@ if [ ! -s $prefix_db ] ; then
     die "create an empty file if you will not announce IPv4 prefixes."
 fi
 
-if [ ! -s $prefix6_db ] ; then
+if [ ! -e $prefix6_db ] ; then
     echo "error: $prefix6_db not found."
     echo "list the IPv6 prefixes you will announce in $prefix6_db."
     die "create an empty file if you will not announce IPv6 prefixes."
