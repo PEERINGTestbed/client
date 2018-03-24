@@ -29,35 +29,35 @@ check_valid_asn () {  # {{{
 do_announce () {  #{{{
     local mux=$1
     local filterfn="$bird_filters/export_${mux}_$prefixfn.conf"
-    echo "if ( net = $prefix ) then {" > $filterfn
-    if [ $prepend -eq 0 -a $origin -ne 0 ] ; then
+    echo "if ( net = $prefix ) then {" > "$filterfn"
+    if [ $prepend -eq 0 ] && [ $origin -ne 0 ] ; then
         prepend=1
     fi
     if [ $poison -ne 0 ] ; then
         if [ $prepend -ne 0 ] ; then die "error [-p and \$prepend != 0]" ; fi
         if [ $origin -ne 0 ] ; then die "error [-p and \$origin != 0]" ; fi
-        echo "    bgp_path.prepend(47065);" >> $filterfn
-        echo "    bgp_path.prepend($poison);" >> $filterfn
+        echo "    bgp_path.prepend(47065);" >> "$filterfn"
+        echo "    bgp_path.prepend($poison);" >> "$filterfn"
     elif [ $prepend -ne 0 ] ; then
         if [ $origin -eq 0 ] ; then origin=47065 ; fi
         for _i in $(seq 1 $prepend) ; do
-            echo "    bgp_path.prepend($origin);" >> $filterfn
+            echo "    bgp_path.prepend($origin);" >> "$filterfn"
         done
     fi
     if [[ ${communities[@]:-undef} != undef ]] ; then
         for comm in "${communities[@]}" ; do
-            echo "    bgp_community.add((47065,$comm));" >> $filterfn;
+            echo "    bgp_community.add((47065,$comm));" >> "$filterfn"
         done
     fi
     if [[ ${full_communities[@]:-undef} != undef ]] ; then
         for comm in "${full_communities[@]}" ; do
-            echo "    bgp_community.add(($comm));" >> $filterfn;
+            echo "    bgp_community.add(($comm));" >> "$filterfn"
         done
     fi
-    echo "    accept;" >> $filterfn
-    echo "}" >> $filterfn
+    echo "    accept;" >> "$filterfn"
+    echo "}" >> "$filterfn"
     filterfn=$bird_routes/$prefixfn
-    echo "route $prefix unreachable;" > $filterfn
+    echo "route $prefix unreachable;" > "$filterfn"
 }  #}}}
 
 
@@ -130,7 +130,7 @@ test $# -ge 2 || usage
 test $EUID -eq 0 || die "The BIRD BGP daemon requires root access."
 
 OPTIND=2  # {{{
-while getopts "m:p:P:o:c:C:" opt $* ; do
+while getopts "m:p:P:o:c:C:" opt "$@" ; do
 case $opt in
 m)  mux=$OPTARG ;;
 p)  poison=$OPTARG ;;
@@ -143,7 +143,7 @@ c)
     communities+=($OPTARG)
     ;;
 C)
-    for comm in $(echo $OPTARG | tr "," "\n")
+    for comm in $(echo "$OPTARG" | tr "," "\n")
     do
 	if [[ $comm -gt 65535 || $comm -lt 0 ]] ; then
             die "error [-C id1,id2 accepts only 16-bit numbers]"
@@ -157,16 +157,16 @@ done  # }}}
 
 
 declare -A mux2dev
-while read fmux fdev ; do
+while read -r fmux fdev ; do
     mux2dev[$fmux]=$fdev
-done < $mux2dev_db
+done < "$mux2dev_db"
 
-if [ $mux != all -a ${mux2dev[$mux]:-unset} = unset ] ; then
+if [ "$mux" != all ] && [ "${mux2dev[$mux]:-unset}" = unset ] ; then
     die "error [mux unknown: $mux]"
 fi
 
-check_valid_asn $poison
-check_valid_asn $origin
+check_valid_asn "$poison"
+check_valid_asn "$origin"
 
 if [[ $prepend -lt 0 || $prepend -gt 3 ]] ; then
     die "error [can prepend only 1, 2, or 3 times]"
@@ -176,19 +176,31 @@ if [[ $poison -ne 0 && ($origin -ne 0 || $prepend -ne 0) ]] ; then
     die "error [cannot -p with -o or -P]"
 fi
 
+if [ ! -e "$prefix_db" ] ; then
+    echo "error: $prefix_db not found."
+    echo "list the IPv4 prefixes you will announce in $prefix_db."
+    die "create an empty file if you will not announce IPv4 prefixes."
+fi
+
+if [ ! -e "$prefix6_db" ] ; then
+    echo "error: $prefix6_db not found."
+    echo "list the IPv6 prefixes you will announce in $prefix6_db."
+    die "create an empty file if you will not announce IPv6 prefixes."
+fi
+
 declare -A pfx2id
-while read pfx ; do
+while read -r pfx ; do
     pfx2id[$pfx]=v4
-done < $prefix_db
-while read pfx ; do
+done < "$prefix_db"
+while read -r pfx ; do
     pfx2id[$pfx]=v6
-done < $prefix6_db
+done < "$prefix6_db"
 
 prefix=${!OPTIND:-unset}
 pfxid=${pfx2id[$prefix]:-unset}
 if [[ $pfxid = unset ]] ; then
     echo "list of configured prefixes:"
-    cat $prefix_db $prefix6_db
+    cat "$prefix_db" "$prefix6_db"
     die "error [invalid prefix: $prefix]"
 fi
 
@@ -212,30 +224,28 @@ fi
 subcmd=$1
 case $subcmd in
 announce)
-    if [ $mux = all ] ; then
-        for cmux in ${!mux2dev[@]} ; do
-            do_announce $cmux
+    if [ "$mux" = all ] ; then
+        for cmux in "${!mux2dev[@]}" ; do
+            do_announce "$cmux"
         done
     else
-        do_announce $mux
+        do_announce "$mux"
     fi
-    echo "configure \"$bird_cfgfile\"" | $birdc_exec -s $bird_sock
-    if ! ip $minus6 addr add $pfxdot1 dev lo ; then
-        echo "error adding addr $pfxdot1 to loopback interface"
-    fi
+    echo "configure \"$bird_cfgfile\"" | $birdc_exec -s "$bird_sock"
+    ip $minus6 addr add "$pfxdot1" dev lo &> /dev/null || true
+    ip $minus6 rule add from "$prefix" table "$kernel_table" pref "$kernel_table" &> /dev/null || true
     ;;
 withdraw)
-    if [ $mux = all ] ; then
-        for cmux in ${!mux2dev[@]} ; do
-            rm -f $bird_filters/export_${cmux}_$prefixfn.conf
+    if [ "$mux" = all ] ; then
+        for cmux in "${!mux2dev[@]}" ; do
+            rm -f "$bird_filters/export_${cmux}_$prefixfn.conf"
         done
+        ip $minus6 addr del "$pfxdot1" dev lo &> /dev/null || true
+        ip $minus6 rule del from "$prefix" table "$kernel_table" pref "$kernel_table" &> /dev/null || true
     else
-        rm -f $bird_filters/export_${mux}_$prefixfn.conf
+        rm -f "$bird_filters/export_${mux}_$prefixfn.conf"
     fi
-    echo "configure \"$bird_cfgfile\"" | $birdc_exec -s $bird_sock
-    if ! ip $minus6 addr del $pfxdot1 dev lo ; then
-        echo "error removing addr $pfxdot1 from loopback interface"
-    fi
+    echo "configure \"$bird_cfgfile\"" | $birdc_exec -s "$bird_sock"
     ;;
 *)
     usage
