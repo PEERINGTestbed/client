@@ -3,9 +3,11 @@ set -eu
 
 usage () {
     cat <<-EOF
-usage: $0 status|up mux|down mux
+usage: $0 status|log mux|up mux|down mux
 
 status      Show the status of configured OpenVPN tunnels.
+
+log mux     Show log file for mux.
 
 up mux      Bring tunnel to mux up.
 
@@ -18,57 +20,63 @@ EOF
 mux_status_check() {
     local mux=$1
     local dev=${mux2dev[$mux]:-unset}
-    test $dev != "unset" || die "error [mux $mux unknown]"
-    local pidfn="$varrun/$dev.pid"
-    if [ ! -s $pidfn ] ; then
+    test "$dev" != unset || die "error [mux $mux unknown]"
+    if ! echo quit | socat - "UNIX:var/$mux.sock" &> /dev/null ; then
+        rm -f "$varrun/$mux.pid"
+        rm -f "$varrun/$mux.sock"
+        rm -f "$varrun/$mux.updown"
         mstat="down"
         return
     fi
-    if ! kill -0 $(cat $pidfn) &> /dev/null ; then
-        echo "deleting $pidfn: cannot send signal"
-        rm $pidfn
-        mstat="down"
-        return
-    fi
-    local statfn="$varrun/$dev.status"
-    if [ ! -s $statfn ] ; then
-        mstat="down"
+    local statfn="$varrun/$mux.updown"
+    if [ ! -s "$statfn" ] ; then
+        echo "OpenVPN status files in inconsistent state [$statfn missing]"
+        mstat="up 0.0.0.0 ::1 [$statfn missing]"
     else
-        mstat=$(head -n 1 $statfn)
+        mstat=$(head -n 1 "$statfn")
     fi
 }
 
+if ! which socat > /dev/null ; then die "PEERING requires the socat tool" ; fi
 test $# -ge 1 || usage
 test $EUID -eq 0 || die "OpenVPN requires root access."
 
 declare -A mux2dev
-while read mux dev ; do
+while read -r mux dev ; do
     mux2dev[$mux]=$dev
-done < $mux2dev_db
+done < "$mux2dev_db"
 
 case $1 in
 up)
     test $# -ge 2 || usage
     mux=$2
-    mux_status_check $mux
+    mux_status_check "$mux"
     if [[ $mstat =~ ^up.*$ ]] ; then term "tunnel $mux already up" ; fi
-    if ! openvpn --cd $progdir --config $openvpn_cfgs/$mux.conf ; then
+    if ! openvpn --cd "$progdir" --config "$openvpn_cfgs/$mux.conf" ; then
         die "openvpn did not start correctly, please check logs"
     fi
     ;;
 down)
     test $# -ge 2 || usage
     mux=$2
-    mux_status_check $mux
+    mux_status_check "$mux"
     if [[ $mstat =~ ^down$ ]] ; then term "tunnel $mux already down" ; fi
     dev=${mux2dev[$mux]}
-    kill -SIGINT $(cat $varrun/$dev.pid)
-    rm -f $varrun/$dev.pid
-    rm -f $varrun/$dev.status
+    echo "signal SIGTERM" | socat - "UNIX:var/$mux.sock" > /dev/null
+    rm -f "$varrun/$mux.pid"
+    rm -f "$varrun/$mux.sock"
+    rm -f "$varrun/$mux.updown"
+    ;;
+log)
+    test $# -ge 2 || usage
+    mux=$2
+    mux_status_check "$mux"
+    echo "$mux ${mux2dev[$mux]} $mstat"
+    cat "$varrun/$mux.log"
     ;;
 status)
-    for mux in ${!mux2dev[@]} ; do
-        mux_status_check $mux
+    for mux in "${!mux2dev[@]}" ; do
+        mux_status_check "$mux"
         echo "$mux ${mux2dev[$mux]} $mstat"
     done | sort
     ;;

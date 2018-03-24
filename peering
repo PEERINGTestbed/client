@@ -1,9 +1,9 @@
 #!/bin/bash
 set -eu
 
-program=$(basename $0)
-export progdir=$(cd $(dirname $0); pwd -P)
-. $progdir/scripts/peering-config
+program=$(basename "$0")
+export progdir=$(cd "$(dirname "$0")"; pwd -P)
+. "$progdir/scripts/peering-config"
 
 usage () {
     cat <<-EOF
@@ -26,19 +26,19 @@ test $# -ge 1 || usage
 case $1 in
 openvpn)
     shift
-    $progdir/scripts/peering-openvpn $@
+    "$progdir"/scripts/peering-openvpn "$@"
     ;;
 bgp)
     shift
-    $progdir/scripts/peering-bgp $@
+    "$progdir"/scripts/peering-bgp "$@"
     ;;
 bgp6)
     shift
-    $progdir/scripts/peering-bgp v6 $@
+    "$progdir"/scripts/peering-bgp v6 "$@"
     ;;
 prefix)
     shift
-    $progdir/scripts/peering-prefix $@
+    "$progdir"/scripts/peering-prefix "$@"
     ;;
 *)
     usage

@@ -31,23 +31,19 @@ EOF
 }
 
 reset_config () {
-    rm -rf $bird_routes
-    rm -rf $bird_filters
+    rm -rf "$bird_routes"
+    rm -rf "$bird_filters"
 }
 
-remove_ip_rules () {
+
+remove_all_ip_rules () {  # {{{
     table=$1
     while ip $minus6 rule show | grep "$table:" > /dev/null ; do
-        ip $minus6 rule del pref $table
+        ip $minus6 rule del pref "$table"
     done
 }
+# }}}
 
-add_ip_rules () {
-    table=$1
-    cat $prefix_db | while read pfx ; do
-        ip $minus6 rule add from $pfx table $table pref $table
-    done
-}
 
 test $EUID -eq 0 || die "The BIRD BGP daemon requires root access."
 test $# -ge 1 || usage
@@ -72,37 +68,36 @@ test $# -ge 1 || usage
 
 case $1 in
 cli)
-    test -S $bird_sock || die "error [BIRD control socket not found]"
-    $birdc_exec -s $bird_sock
+    test -S "$bird_sock" || die "error [BIRD control socket not found]"
+    $birdc_exec -s "$bird_sock"
     ;;
 start)
-    test -S $bird_sock && die "error [BIRD control socket exists]"
+    test -S "$bird_sock" && die "error [BIRD control socket exists]"
     reset_config
-    mkdir -p $bird_routes
-    mkdir -p $bird_filters
-    remove_ip_rules $kernel_table
-    add_ip_rules $kernel_table
-    $bird_exec -c $bird_cfgfile -s $bird_sock
+    mkdir -p "$bird_routes"
+    mkdir -p "$bird_filters"
+    remove_all_ip_rules "$kernel_table"
+    $bird_exec -c "$bird_cfgfile" -s "$bird_sock"
     ;;
 status)
-    test -S $bird_sock || term "BIRD is down"
-    echo "show protocols" | $birdc_exec -s $bird_sock
+    test -S "$bird_sock" || term "BIRD is down"
+    echo "show protocols" | "$birdc_exec" -s "$bird_sock"
     ;;
 stop)
-    if [ -S $bird_sock ] ; then
-        if ! $(echo "down" | $birdc_exec -s $bird_sock > /dev/null) ;  then
+    if [ -S "$bird_sock" ] ; then
+        if ! echo "down" | "$birdc_exec" -s "$bird_sock" > /dev/null ;  then
             echo "BIRD control socket in bad state, deleting."
         fi
-        rm -f $bird_sock
+        rm -f "$bird_sock"
     fi
-    remove_ip_rules $kernel_table
+    remove_all_ip_rules "$kernel_table"
     reset_config
     ;;
 adv)
     test $# -ge 2 || usage
     mux=$2
-    test ${mux2dev[$mux]:-unset} != "unset" || die "error [unknown mux: $mux]"
-    echo "show route export $mux" | $birdc_exec -s $bird_sock
+    test "${mux2dev[$mux]:-unset}" != "unset" || die "error [unknown mux: $mux]"
+    echo "show route export $mux" | $birdc_exec -s "$bird_sock"
     ;;
 *)
     usage
