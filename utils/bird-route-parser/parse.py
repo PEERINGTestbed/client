@@ -74,7 +74,7 @@ def create_parser():  # {{{
                            metavar='FILE',
                            required=True,
                            type=str,
-                           help='Input file (with BIRD output)')
+                           help='Input file (with BIRD output), - for STDIN')
 
     cmdparser.add_argument('--out',
                            dest='outfn',
