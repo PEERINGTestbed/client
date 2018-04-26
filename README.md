@@ -16,8 +16,12 @@ PEERING client.
 
 The client runs OpenVPN to connect directly to PEERING muxes and
 the BIRD software router to establish BGP sessions and perform
-announcements.  You can install these dependencies from your distro
-repository; on Debian use `apt-get install openvpn bird`.
+announcements.
+
+You must have a pre-2.0 version of Bird to use the PEERING client. You can compile Bird from source after downloading the source from <http://bird.network.cz/?download>.
+
+You can also install these dependencies from your distro
+repository; on Debian use `apt-get install openvpn bird`. However, ensure that Bird is a pre-2.0 version.
 
 ### PEERING account setup
 
