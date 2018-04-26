@@ -10,6 +10,7 @@ poison=0
 prepend=0
 origin=0
 prefix=invalid
+gw="undef"
 communities=()
 full_communities=()
 
@@ -57,7 +58,12 @@ do_announce () {  #{{{
     echo "    accept;" >> "$filterfn"
     echo "}" >> "$filterfn"
     filterfn=$bird_routes/$prefixfn
-    echo "route $prefix unreachable;" > "$filterfn"
+    echo $gw
+    if [[ $gw = "undef" ]] ; then
+	echo "route $prefix unreachable;" > "$filterfn"
+    else
+	echo "route $prefix via $gw ;" > "$filterfn"
+    fi
 }  #}}}
 
 
@@ -67,6 +73,7 @@ Usage: peering prefix announce|withdraw [-m mux]
                                         [-p poison | [-P prepend] [-o origin]]
                                         [-c id1] ... [-c idN]
                                         [-C as1,c1] ... [-C asX,cY]
+                                        [-v IP]
                                         prefix
 
 Options can be specified in any order, but announce|withdraw must
@@ -117,6 +124,8 @@ withdraw    Withdraw prefix to one or all muxes.
             an advertisement.  If the number of the latter communities
             exceeds 20, no communities will be attached.
 
+-v IP       Set the nexthop.
+
 prefix      Choose the prefix to operate on.  Make sure the prefix
             has been allocated to you, or your announcement will be
             filtered by PEERING muxes.
@@ -136,6 +145,7 @@ m)  mux=$OPTARG ;;
 p)  poison=$OPTARG ;;
 P)  prepend=$OPTARG ;;
 o)  origin=$OPTARG ;;
+v)  gw=$OPTARG ;;
 c)
     if [[ $OPTARG -gt 65535 || $OPTARG -lt 0 ]] ; then
         die "error [-c id accepts only 16-bit numbers]"
@@ -251,3 +261,4 @@ withdraw)
     usage
     ;;
 esac
+
