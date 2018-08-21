@@ -249,6 +249,54 @@ bt_mux_up1 Pipe     mux      up     20:06:57    => bt_up1
         # sys.stdout.write(json.dumps(data, indent=2))
     # }}}
 
+    def test_ParseComplexRoutes2(self):  # {{{
+        string = '''184.164.240.0/24   via 10.100.0.122 on eth1 [up_2_65002 20:07:01] * (100) [AS65002i]
+        Type: BGP unicast univ
+        BGP.origin: IGP
+        BGP.as_path: 65002
+        BGP.next_hop: 10.100.0.122
+        BGP.local_pref: 100
+                   via 10.100.0.122 on eth1 [up_2_65002 20:07:01] * (100) [AS65002i]
+        Type: BGP unicast univ
+        BGP.origin: IGP
+        BGP.as_path: 65002
+        BGP.next_hop: 10.100.0.122
+        BGP.local_pref: 100
+184.164.242.0/24   via 10.100.0.122 on eth1 [up_2_65002 20:07:01] * (100) [AS65002i]
+        Type: BGP unicast univ
+        BGP.origin: IGP
+        BGP.as_path: 65002
+        BGP.next_hop: 10.100.0.122
+        BGP.local_pref: 100
+184.164.243.0/24   via 10.100.0.122 on eth1 [up_2_65002 20:07:01] * (100) [AS65002i]
+        Type: BGP unicast univ
+        BGP.origin: IGP
+        BGP.as_path: 65002
+        BGP.next_hop: 10.100.0.122
+        BGP.local_pref: 100
+184.164.246.0/24   via 10.100.0.122 on eth1 [up_2_65002 20:07:01] * (100) [AS65002i]
+        Type: BGP unicast univ
+        BGP.origin: IGP
+        BGP.as_path: 65002
+        BGP.next_hop: 10.100.0.122
+        BGP.local_pref: 100
+'''
+        sio = cStringIO.StringIO(string)
+        reader = cblr.CachingBufferedLineReader(sio)
+        data = parse.show_route(reader, self.devnull, True)
+        self.assertEquals(5, len(data))
+        for rt in data:
+            sys.stdout.write('%s' % rt)
+            self.assertEquals(rt['via'], 'via 10.100.0.122 on eth1')
+            self.assertEquals(rt['proto'], 'up_2_65002')
+            self.assertEquals(rt['since'], '20:07:01')
+            self.assertEquals(rt['primary'], '*')
+            self.assertEquals(rt['info'], '(100) [AS65002i]')
+            self.assertEquals(len(rt['attributes']), 5)
+        # sys.stdout.write(json.dumps(data, indent=2))
+    # }}}
+
+
 
 if __name__ == '__main__':
     def initlog(basename, loglevel):  # {{{
