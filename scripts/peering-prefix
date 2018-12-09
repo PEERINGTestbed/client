@@ -11,7 +11,6 @@ prepend=0
 origin=0
 prefix=invalid
 communities=()
-full_communities=()
 
 
 check_valid_asn () {  # {{{
@@ -46,11 +45,6 @@ do_announce () {  #{{{
     fi
     if [[ ${communities[@]:-undef} != undef ]] ; then
         for comm in "${communities[@]}" ; do
-            echo "    bgp_community.add((47065,$comm));" >> "$filterfn"
-        done
-    fi
-    if [[ ${full_communities[@]:-undef} != undef ]] ; then
-        for comm in "${full_communities[@]}" ; do
             echo "    bgp_community.add(($comm));" >> "$filterfn"
         done
     fi
@@ -86,36 +80,32 @@ withdraw    Withdraw prefix to one or all muxes.
             origin of the announcement.  Cannot be combined with -p;
             sets -P to 1 if not specified.  [default: unchanged (47065)]
 
--c id       Attach community (47065,id) to the announcement.  This will 
-            let the announcement through the peer with the given id
-            (id <= 1000) or specifically deny advertising to a peer
-            (if 1000 < id + 1000 <= 2000; e.g. to deny advertising to
-            peer 1: -c 1001).  May be added multiple times to announce
-            to multiple peers, but each peer will only see their
-            respective community (e.g.: -c 1 means Peer 1 receives
-            (47065,1)).  [default: announce to all peers only if no
-            communities attached] (see https://peering.usc.edu/peers
-            for the list of peers).  Can be combined with the -C.
+-c ASN:COMM Attach community ASN:COMM to the announcement.  Can be used
+            multiple times to attach multiple communities.  Only
+            PEERING-operated ASes are allowed for ASN.  Both ASN and
+            COMM are limited to 16-bit numbers.
 
-            Community (47065,0) is a special community to enable
-            advertising a route to all peers across AL2S.
+            Communities in the range 47065:0--2000 have special meaning:
 
--C as1,c2   Attach community (as1,c2) to the announcement.  Only valid 
-            PEERING 16-bit AS numbers are allowed for as1, while c2
-            can be any number 1 <= c2 <= 65535.  Additionally,
-            communities in the range (65535,65281 - 65284) (as defined
-            in RFC 1997 & 3765) are also accepted.
+            - Community 47065:0 indicates that an announcement should be
+              announced to remote peers through AL2S.
+            - Communities 47065:X, 1 <= X <= 1000, indicate that the
+              announcement should be exported to peer X.
+            - Communities 47065:1000+X, 1 <= X <= 1000, indicate that
+              the announcement should not be exported to the peer X.
 
-            May also be combined with the -c option to selectively
-            advertise to peers.  If the community specified in the -C
-            option is in the form of 47065,c2 the effect is identical
-            to the -c option.  
+            Announcements through each peer only see their filtering
+            community.  The default behavior is to announce to all
+            peers.  See https://peering.usc.edu/peers for the list of
+            peers and their IDs.
 
-            When attaching communities, a total of one community in
-            the format 47065,id plus a maximum of 20 communities
-            (outside of the range 47065,c2 <= 2000) can be attached to
-            an advertisement.  If the number of the latter communities
-            exceeds 20, no communities will be attached.
+            Special communities in the range 65535:65281--65284 defined
+            in RFCs 1997 and 3765 are filtered and have no effect.
+
+            A maximum of 20 communities (not including the special
+            communities above) is allowed in any announcement.  If the
+            number of communities exceeds 20, all communities will be
+            filtered.
 
 prefix      Choose the prefix to operate on.  Make sure the prefix
             has been allocated to you, or your announcement will be
@@ -137,19 +127,19 @@ p)  poison=$OPTARG ;;
 P)  prepend=$OPTARG ;;
 o)  origin=$OPTARG ;;
 c)
-    if [[ $OPTARG -gt 65535 || $OPTARG -lt 0 ]] ; then
-        die "error [-c id accepts only 16-bit numbers]"
+    if ! [[ $OPTARG =~ [0-9]+:[0-9]+ ]] ; then
+        die "error [-c requires a string that matches '[0-9]+:[0-9]+']"
     fi
-    communities+=($OPTARG)
-    ;;
-C)
-    for comm in $(echo "$OPTARG" | tr "," "\n")
-    do
-	if [[ $comm -gt 65535 || $comm -lt 0 ]] ; then
-            die "error [-C id1,id2 accepts only 16-bit numbers]"
-	fi
-    done
-    full_communities+=($OPTARG)
+    ctoken=${OPTARG%:*}
+    if [[ $ctoken -gt 65535 || $ctoken -lt 0 ]] ; then
+        die "error [-c ASN:COMM accepts only 16-bit numbers]"
+    fi
+    ctoken=${OPTARG#*:}
+    if [[ $ctoken -gt 65535 || $ctoken -lt 0 ]] ; then
+        die "error [-c ASN:COMM accepts only 16-bit numbers]"
+    fi
+    cstring=$(echo $OPTARG | tr ':' ',')
+    communities+=($cstring)
     ;;
 *)  usage
 esac
