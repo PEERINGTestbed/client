@@ -4,6 +4,10 @@ The PEERING client controller is a set of scripts to ease
 configuration and operation of a PEERING client, able to connect to
 PEERING muxes and announce PEERING prefixes.
 
+## Recent changes
+
+* We have recently merged the `-c` and `-C` parameters used to attach communities to announcements.  The functionality is identical to before, but the interface for specifying communities has changed.
+
 ## Installation
 
 After cloning [this repository][1], follow the following
