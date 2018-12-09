@@ -80,18 +80,18 @@ withdraw    Withdraw prefix to one or all muxes.
             origin of the announcement.  Cannot be combined with -p;
             sets -P to 1 if not specified.  [default: unchanged (47065)]
 
--c ASN:COMM Attach community ASN:COMM to the announcement.  Can be used
+-c ASN,COMM Attach community ASN,COMM to the announcement.  Can be used
             multiple times to attach multiple communities.  Only
             PEERING-operated ASes are allowed for ASN.  Both ASN and
             COMM are limited to 16-bit numbers.
 
-            Communities in the range 47065:0--2000 have special meaning:
+            Communities in the range 47065,0--2000 have special meaning:
 
-            - Community 47065:0 indicates that an announcement should be
+            - Community 47065,0 indicates that an announcement should be
               announced to remote peers through AL2S.
-            - Communities 47065:X, 1 <= X <= 1000, indicate that the
+            - Communities 47065,X (1 <= X <= 1000) indicate that the
               announcement should be exported to peer X.
-            - Communities 47065:1000+X, 1 <= X <= 1000, indicate that
+            - Communities 47065,1000+X (1 <= X <= 1000) indicate that
               the announcement should not be exported to the peer X.
 
             Announcements through each peer only see their filtering
@@ -99,7 +99,7 @@ withdraw    Withdraw prefix to one or all muxes.
             peers.  See https://peering.usc.edu/peers for the list of
             peers and their IDs.
 
-            Special communities in the range 65535:65281--65284 defined
+            Special communities in the range 65535,65281--65284 defined
             in RFCs 1997 and 3765 are filtered and have no effect.
 
             A maximum of 20 communities (not including the special
@@ -120,26 +120,25 @@ test $# -ge 2 || usage
 test $EUID -eq 0 || die "The BIRD BGP daemon requires root access."
 
 OPTIND=2  # {{{
-while getopts "m:p:P:o:c:C:" opt "$@" ; do
+while getopts "m:p:P:o:c:" opt "$@" ; do
 case $opt in
 m)  mux=$OPTARG ;;
 p)  poison=$OPTARG ;;
 P)  prepend=$OPTARG ;;
 o)  origin=$OPTARG ;;
 c)
-    if ! [[ $OPTARG =~ [0-9]+:[0-9]+ ]] ; then
-        die "error [-c requires a string that matches '[0-9]+:[0-9]+']"
+    if ! [[ $OPTARG =~ [0-9]+,[0-9]+ ]] ; then
+        die "error [-c requires a string that matches '[0-9]+,[0-9]+']"
     fi
-    ctoken=${OPTARG%:*}
+    ctoken=${OPTARG%,*}
     if [[ $ctoken -gt 65535 || $ctoken -lt 0 ]] ; then
         die "error [-c ASN:COMM accepts only 16-bit numbers]"
     fi
-    ctoken=${OPTARG#*:}
+    ctoken=${OPTARG#*,}
     if [[ $ctoken -gt 65535 || $ctoken -lt 0 ]] ; then
         die "error [-c ASN:COMM accepts only 16-bit numbers]"
     fi
-    cstring=$(echo $OPTARG | tr ':' ',')
-    communities+=($cstring)
+    communities+=($OPTARG)
     ;;
 *)  usage
 esac
