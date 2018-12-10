@@ -11,6 +11,7 @@ prepend=0
 origin=0
 prefix=invalid
 communities=()
+large_communities=()
 
 
 check_valid_asn () {  # {{{
@@ -48,6 +49,11 @@ do_announce () {  #{{{
             echo "    bgp_community.add(($comm));" >> "$filterfn"
         done
     fi
+    if [[ ${large_communities[@]:-undef} != undef ]] ; then
+        for comm in "${large_communities[@]}" ; do
+            echo "    bgp_large_community.add(($comm));" >> "$filterfn"
+        done
+    fi
     echo "    accept;" >> "$filterfn"
     echo "}" >> "$filterfn"
     filterfn=$bird_routes/$prefixfn
@@ -60,6 +66,7 @@ usage () {  # {{{
 Usage: peering prefix announce|withdraw [-m mux]
                                         [-p poison | [-P prepend] [-o origin]]
                                         [-c ASN,COMM] ... [-c ASN,COMM]
+                                        [-l ASN,X,Y] ... [-l ASN,X,Y]
                                         prefix
 
 Options can be specified in any order, but announce|withdraw must
@@ -106,6 +113,11 @@ withdraw    Withdraw prefix to one or all muxes.
             number of communities exceeds 20, all communities will be
             filtered.
 
+-l ASN,F,V  Attach large community ASN,F,V to the announcement.  Can be
+            used multiple times to attach multiple large communities.
+            (Large communities are filtered by default and allowed upon
+            request.)
+
 prefix      Choose the prefix to operate on.  Make sure the prefix
             has been allocated to you, or your announcement will be
             filtered by PEERING muxes.
@@ -119,7 +131,7 @@ test $# -ge 2 || usage
 test $EUID -eq 0 || die "The BIRD BGP daemon requires root access."
 
 OPTIND=2  # {{{
-while getopts "m:p:P:o:c:" opt "$@" ; do
+while getopts "m:p:P:o:c:C:l:" opt "$@" ; do
 case $opt in
 m)  mux=$OPTARG ;;
 p)  poison=$OPTARG ;;
@@ -138,6 +150,12 @@ c|C)
         die "error [-c ASN:COMM accepts only 16-bit numbers]"
     fi
     communities+=($OPTARG)
+    ;;
+l)
+    if ! [[ $OPTARG =~ [0-9]{1,9},[0-9]{1,9},[0-9]{1,9} ]] ; then
+        die "error [-l requires a string that matches '[0-9]{1,9},[0-9]{1,9},[0-9]{1,9}']"
+    fi
+    large_communities+=($OPTARG)
     ;;
 *)  usage
 esac
