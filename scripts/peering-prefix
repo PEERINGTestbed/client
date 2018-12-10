@@ -125,7 +125,7 @@ m)  mux=$OPTARG ;;
 p)  poison=$OPTARG ;;
 P)  prepend=$OPTARG ;;
 o)  origin=$OPTARG ;;
-c)
+c|C)
     if ! [[ $OPTARG =~ [0-9]+,[0-9]+ ]] ; then
         die "error [-c requires a string that matches '[0-9]+,[0-9]+']"
     fi
