@@ -3,3 +3,5 @@ prefixes6.txt
 var
 configs/bird/prefix-filters
 configs/bird/route-announcements
+configs/bird6/prefix-filters
+configs/bird6/route-announcements
