@@ -121,6 +121,22 @@ or withdrawing prefixes, we support the following options:
 
   [2]: https://peering.usc.edu/peers/
 
+## Controlling TinyProxy
+
+`usage ./peering proxy start|stop|status`
+
+Both OpenVPN and TinyProxy have to  run with superuser rights, you may
+want to  run the  provided scripts  as root or  `suid` the  script. To
+start  the proxy  the OpenVPN  need  to be  running. When  controlling
+TinyProxy, we support three operations:
+
+* `peering proxy  start`: start the  proxy with the tunnel  ip defined
+  inside the configuration file.
+
+* `peering proxy stop`: kill all proxy process running.
+
+* `peering proxy status`: show each `pid` associated to proxy process.
+
 ## Guidelines
 
 Follow these guidelines when using your PEERING client:
