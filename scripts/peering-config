@@ -18,6 +18,8 @@ export bird6_filters="$bird6_cfgs/prefix-filters"
 
 export openvpn_cfgs="$progdir/configs/openvpn"
 
+export tinyproxy_cfgs="$progdir/configs/tinyproxy"
+
 export mux2dev_db="$varrun/mux2dev.txt"
 export prefix_db="$progdir/prefixes.txt"
 export prefix6_db="$progdir/prefixes6.txt"
