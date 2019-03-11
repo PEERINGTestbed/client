@@ -1,0 +1,43 @@
+#!/bin/bash
+set -eu
+
+usage () {
+    cat <<-EOF
+usage: $0 status|start|stop
+
+status      Show the status.
+
+start       Start proxy.
+
+stop        Stop proxy.
+
+EOF
+    exit 0
+}
+
+test $# -ge 1 || usage
+
+case $1 in
+start)
+    if ! tinyproxy -c "$tinyproxy_cfgs/tinyproxy.conf" ; then
+        die "tinyproxy did not start correctly, the OpenVPN is running? please check logs"
+    fi
+    ;;
+stop)
+    for pid in $(pidof tinyproxy); do
+	kill -9 $pid;
+    done
+    rm /var/run/tinyproxy/tinyproxy.pid
+    ;;
+status)
+    if [ -e "/var/run/tinyproxy/tinyproxy.pid" ]
+    then
+	echo "Proxy is running"
+    else
+	echo "Proxy is not running"
+    fi
+    ;;
+*)
+    usage
+    ;;
+esac

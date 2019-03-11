@@ -17,6 +17,8 @@ bgp6        Control IPv6 BGP router (BIRD6)
 
 prefix      Control prefix announcements
 
+proxy	    Control proxy for containers
+
 EOF
     exit 0
 }
@@ -39,6 +41,10 @@ bgp6)
 prefix)
     shift
     "$progdir"/scripts/peering-prefix "$@"
+    ;;
+proxy)
+    shift
+    "$progdir"/scripts/peering-proxy "$@"
     ;;
 *)
     usage
