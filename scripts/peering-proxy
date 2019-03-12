@@ -27,11 +27,15 @@ stop)
     for pid in $(pidof tinyproxy); do
 	kill -9 $pid;
     done
+    rm /var/run/tinyproxy/tinyproxy.pid
     ;;
 status)
-    for pid in $(pidof tinyproxy); do
-	echo "$pid running tinyproxy"
-    done
+    if [ -e "/var/run/tinyproxy/tinyproxy.pid" ]
+    then
+	echo "Proxy is running"
+    else
+	echo "Proxy is not running"
+    fi
     ;;
 *)
     usage
