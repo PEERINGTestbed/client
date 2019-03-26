@@ -125,17 +125,36 @@ or withdrawing prefixes, we support the following options:
 
 `usage ./peering proxy start|stop|status`
 
-Both OpenVPN and TinyProxy have to  run with superuser rights, you may
-want to  run the  provided scripts  as root or  `suid` the  script. To
-start  the proxy  the OpenVPN  need  to be  running. When  controlling
-TinyProxy, we support three operations:
+Both OpenVPN and TinyProxy have to run with superuser rights.  The proxy
+for a given mux's container needs to start after the OpenVPN tunnel is
+established, or TinyProxy will be unable to bind to the right IP
+address.
 
-* `peering proxy  start`: start the  proxy with the tunnel  ip defined
-  inside the configuration file.
+This script reads your container's *allocated prefix ID* from a file
+named `container.txt`.  This information is necessary to compute
+prefixes and install routes, you can find it on the PEERING website
+dashboard.
 
-* `peering proxy stop`: kill all proxy process running.
+* `peering proxy start mux`: start the proxy for communicating with
+  the container on the given mux.
 
-* `peering proxy status`: show each `pid` associated to proxy process.
+* `peering proxy stop mux`: stop the proxy for the mux passed as
+  parameter.  Use `all` to stop all proxies.
+
+* `peering proxy status`: show the status of running proxies.
+
+After the proxy is configured, you can start using it from your
+container by setting the `http_proxy` environment variable to
+your client's `tun` IP address.  For example, if `amsterdam01`'s `tun5`
+has address `100.69.128.8`, run:
+
+```
+export http_proxy=http://100.68.128.8:8805/
+```
+
+(Note that the port number is `88%02d`, where `d` is the same number as
+in the `tun` device.  The local address is also shown on standard output
+when you start the proxy server.)
 
 ## Guidelines
 

@@ -3,39 +3,126 @@ set -eu
 
 usage () {
     cat <<-EOF
-usage: $0 status|start|stop
+usage: $0 <status|start mux|stop mux>
 
-status      Show the status.
+status      Show running proxies.
 
-start       Start proxy.
+start mux   Start tinyproxy for accessing the container on the given mux.
 
-stop        Stop proxy.
+stop mux    Stop proxy for accessing the container on the given mux.
 
 EOF
     exit 0
 }
 
-test $# -ge 1 || usage
+generate_config () {
+    local mux=$1
+    local outfn=$2
+    local tapdev=${mux2dev[$mux]}
+    local muxid=${tapdev##tap}
+    local localaddr=$(ip -o -4 addr show dev $tapdev | awk '{print $4;}' \
+            | cut -d "/" -f 1)
+    local localport=$(printf "88%02d" $muxid)
+
+    local ctxid=$(cat $ctxid_db)
+    local base=$((ctxid * 4))
+    local expsubnet=100.125.$((muxid * 8 + base/256)).$((base % 256))/30
+
+    local pidfile=$varrun/tinyproxy.$mux.pid
+    local logfile=$varrun/tinyproxy.$mux.log
+
+    echo "TinyProxy addresses for $mux ($tapdev, $muxid)"
+    echo "  local address: $localaddr:$localport"
+    echo "  subnet: $expsubnet"
+    echo "  pidfile: $pidfile"
+    echo "  logfile: $logfile"
+    sed -e "s+__SED_LOCALADDR__+$localaddr+" \
+        -e "s+__SED_LOCALPORT__+$localport+" \
+        -e "s+__SED_EXP_SUBNET__+$expsubnet+" \
+        -e "s+__SED_PIDFILE__+$pidfile+" \
+        -e "s+__SED_LOGFILE__+$logfile+" \
+        $tinyproxy_template > $outfn
+}
+
+setup_route () {
+    local operation=$1
+    local tapdev=${mux2dev[$mux]}
+    local muxid=${tapdev##tap}
+    local base=$((ctxid * 4))
+    local expsubnet=100.125.$(( muxid*8 + base/256 )).$(( base%256 ))/30
+    local gateway=100.$(( muxid+64 )).128.1
+    local localaddr=100.125.$(( muxid*8 + base/256 )).$(( (base%256) + 2 ))/30
+    echo "updating ($operation) $expsubnet via $gateway dev $tapdev"
+    ip route $operation $expsubnet via $gateway dev $tapdev || true
+    expsubnet=2804:269c:ff03:$muxid:$ctxid::/80
+    gateway=2804:269c:ff00:4:1::1
+    echo "updating ($operation) $expsubnet via $gateway dev $tapdev"
+    ip -6 route $operation $expsubnet via $gateway dev $tapdev || true
+}
+
+[[ $# -ge 1 ]] || usage
+[[ $EUID -eq 0 ]] || die "peering-proxy needs to run as root."
+
+if [[ ! -s $ctxid_db ]] ; then
+    die "file $ctxid_db not found; should contain your experiment's number"
+fi
+ctxid=$(cat $ctxid_db)
+
+
+if [[ $# -ge 2 ]] ; then
+    mux=$2
+    declare -A mux2dev
+    while read -r fmux fdev ; do
+        mux2dev[$fmux]=$fdev
+    done < "$mux2dev_db"
+    if [ "${mux2dev[$mux]:-unset}" = unset ] ; then
+        die "error [mux unknown: $mux]"
+    fi
+fi
 
 case $1 in
 start)
-    if ! tinyproxy -c "$tinyproxy_cfgs/tinyproxy.conf" ; then
-        die "tinyproxy did not start correctly, the OpenVPN is running? please check logs"
+    [[ $# -ge 2 ]] || usage
+    cfgfile=$tinyproxy_cfgs/tinyproxy.$mux.conf
+    generate_config $mux $cfgfile
+    if tinyproxy -c $cfgfile ; then
+        setup_route add
+    else
+        die "tinyproxy did not start correctly, check logs"
     fi
     ;;
 stop)
-    for pid in $(pidof tinyproxy); do
-	kill -9 $pid;
-    done
-    rm /var/run/tinyproxy/tinyproxy.pid
+    [[ $# -ge 2 ]] || usage
+    pidfile=$varrun/tinyproxy.$mux.pid
+    if [[ ! -e $pidfile ]] ; then
+        die "pidfile $pidfile not found"
+    fi
+    if ! pkill -0 --pidfile $pidfile ; then
+        echo "pidfile: $pidfile"
+        echo "process does not appear to be running. cleaning up."
+        setup_route del
+        rm -rf $pidfile
+    fi
+    pkill --pidfile $pidfile
+    setup_route del
     ;;
 status)
-    if [ -e "/var/run/tinyproxy/tinyproxy.pid" ]
-    then
-	echo "Proxy is running"
-    else
-	echo "Proxy is not running"
+    if ! ls $varrun/tinyproxy.*.pid &> /dev/null ; then
+        echo "No proxies running"
+        exit 0
     fi
+    echo "Running proxies:"
+    for fpath in $varrun/tinyproxy.*.pid ; do
+        file=$(basename $fpath)
+        mux=${file##tinyproxy.}
+        mux=${mux%%.pid}
+        if pkill -0 --pidfile $fpath ; then
+            echo "$mux proxy up ($fpath)"
+        else
+            echo "$mux proxy apparently down ($fpath), cleaning up"
+            rm -f $file
+        fi
+    done
     ;;
 *)
     usage

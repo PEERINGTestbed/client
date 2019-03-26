@@ -1,0 +1,24 @@
+User root
+Group root
+
+Listen __SED_LOCALADDR__
+Port __SED_LOCALPORT__
+
+LogLevel Info
+PidFile "__SED_PIDFILE__"
+
+DefaultErrorFile "/usr/share/tinyproxy/default.html"
+StatFile "/usr/share/tinyproxy/stats.html"
+Logfile "__SED_LOGFILE__"
+
+Timeout 600
+MaxClients 100
+MinSpareServers 5
+MaxSpareServers 20
+StartServers 5
+MaxRequestsPerChild 0
+Allow 127.0.0.1
+Allow __SED_EXP_SUBNET__
+ViaProxyName "tinyproxy"
+ConnectPort 443
+ConnectPort 563
