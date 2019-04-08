@@ -55,7 +55,7 @@ setup_route () {
     echo "updating ($operation) $expsubnet via $gateway dev $tapdev"
     ip route $operation $expsubnet via $gateway dev $tapdev || true
     expsubnet=2804:269c:ff03:$muxid:$ctxid::/80
-    gateway=2804:269c:ff00:4:1::1
+    gateway=2804:269c:ff00:$muxid:1::1
     echo "updating ($operation) $expsubnet via $gateway dev $tapdev"
     ip -6 route $operation $expsubnet via $gateway dev $tapdev || true
 }
