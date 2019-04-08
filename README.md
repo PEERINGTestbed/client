@@ -143,18 +143,33 @@ dashboard.
 
 * `peering proxy status`: show the status of running proxies.
 
-After the proxy is configured, you can start using it from your
-container by setting the `http_proxy` environment variable to
-your client's `tun` IP address.  For example, if `amsterdam01`'s `tun5`
-has address `100.69.128.8`, run:
+Bringing up a proxy prints relevant information to access and interact
+with that mux's container.
+
+```
+TinyProxy addresses for isi01 (tap2, 2)
+  local address: 100.66.128.6:8802
+  subnet: 100.125.16.8/30
+  pidfile: /home/cunha/git/peering/client/var/tinyproxy.isi01.pid
+  logfile: /home/cunha/git/peering/client/var/tinyproxy.isi01.log
+updating (add) 100.125.16.8/30 via 100.66.128.1 dev tap2
+updating (add) 2804:269c:ff03:2:2::/80 via 2804:269c:ff00:2:1::1 dev tap2
+```
+
+After the proxy is configured, you can start using it *on the
+container* by setting the `http_proxy` environment variable to match
+TinyProxy's local address (above).
 
 ```
 export http_proxy=http://100.68.128.8:8805/
 ```
 
-(Note that the port number is `88%02d`, where `d` is the same number as
-in the `tun` device.  The local address is also shown on standard output
-when you start the proxy server.)
+You can SSH into your container by using the *second host* in the `/30`
+subnet.  You should login as `root` using your private key:
+
+```
+ssh -i ~/.ssh/peering_id_rsa root@100.125.16.10
+```
 
 ## Guidelines
 
