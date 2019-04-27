@@ -1,9 +1,10 @@
-import jinja2
 import json
-import jsonschema
 import os
 import subprocess
 import sys
+
+import jinja2
+import jsonschema
 
 
 class AnnouncementController(object):
@@ -69,7 +70,7 @@ class AnnouncementController(object):
         _stdout, _stderr = proc.communicate(b'configure\n')
 
 
-if __name__ == '__main__':
+def main():
     with open(sys.argv[1], 'r') as announcement_json_fd:
         announcement = json.load(announcement_json_fd)
     bird_cfg_dir = 'configs/bird'
@@ -77,3 +78,7 @@ if __name__ == '__main__':
     schema_fn = 'configs/announcement_schema.json'
     ctrl = AnnouncementController(bird_cfg_dir, bird_sock, schema_fn)
     ctrl.deploy(announcement)
+
+
+if __name__ == '__main__':
+    sys.exit(main())
