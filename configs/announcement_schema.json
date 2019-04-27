@@ -17,7 +17,7 @@
     },
     "allocatedPrefix": {
       "$ref": "#/definitions/prefix",
-      "enum": ["184.164.236.0/24"]
+      "enum": ["184.164.224s.0/24"]
     },
     "peeringASN": {
       "$ref": "#/definitions/ASN",
@@ -25,8 +25,19 @@
     },
     "peeringMux": {
       "type": "string",
-      "enum": ["amsterdam01", "clemson01", "cornell01", "gatech01", "grnet01",
-        "isi01", "phoenix01", "seattle01", "ufmg01", "uw01"
+      "enum": [
+        "amsterdam01",
+        "clemson01",
+        "gatech01",
+        "grnet01",
+        "isi01",
+        "neu01",
+        "phoenix01",
+        "seattle01",
+        "ufmg01",
+        "utah01",
+        "uw01",
+        "wisc01"
       ]
     },
     "announcement": {
