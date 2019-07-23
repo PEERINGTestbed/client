@@ -6,7 +6,7 @@ set -eu
 # . $progdir/peering-config
 
 mux=all
-poison=0
+poison_list=()
 prepend=0
 origin=0
 prefix=invalid
@@ -30,19 +30,25 @@ do_announce () {  #{{{
     local mux=$1
     local filterfn="$bird_filters/export_${mux}_$prefixfn.conf"
     echo "if ( net = $prefix ) then {" > "$filterfn"
-    if [ $prepend -eq 0 ] && [ $origin -ne 0 ] ; then
+    if [ $origin -eq 0 ] ; then origin=47065 ; fi
+    if [ $prepend -eq 0 ] && [ $origin -ne 47065 ] ; then
         prepend=1
     fi
-    if [ $poison -ne 0 ] ; then
-        if [ $prepend -ne 0 ] ; then die "error [-p and \$prepend != 0]" ; fi
-        if [ $origin -ne 0 ] ; then die "error [-p and \$origin != 0]" ; fi
-        echo "    bgp_path.prepend(47065);" >> "$filterfn"
-        echo "    bgp_path.prepend($poison);" >> "$filterfn"
-    elif [ $prepend -ne 0 ] ; then
-        if [ $origin -eq 0 ] ; then origin=47065 ; fi
+    if [ $prepend -ne 0 ] ; then
         for _i in $(seq 1 $prepend) ; do
             echo "    bgp_path.prepend($origin);" >> "$filterfn"
         done
+    fi
+    if [[ ${poison_list[@]:-undef} != undef ]] ; then
+        if [ $prepend -eq 0 ] && [ ${poison_list[0]} -ne $origin ] ; then
+            echo "    bgp_path.prepend($origin);" >> "$filterfn"
+        fi
+        for poison in "${poison_list[@]}" ; do
+            echo "    bgp_path.prepend($poison);" >> "$filterfn"
+        done
+        if [ $origin -ne 47065 ] && [ ${poison_list[-1]} -ne $origin ] ; then
+            echo "    bgp_path.prepend($origin);" >> "$filterfn"
+        fi
     fi
     if [[ ${communities[@]:-undef} != undef ]] ; then
         for comm in "${communities[@]}" ; do
@@ -134,7 +140,7 @@ OPTIND=2  # {{{
 while getopts "m:p:P:o:c:C:l:" opt "$@" ; do
 case $opt in
 m)  mux=$OPTARG ;;
-p)  poison=$OPTARG ;;
+p)  poison_list+=($OPTARG) ;;
 P)  prepend=$OPTARG ;;
 o)  origin=$OPTARG ;;
 c|C)
@@ -171,15 +177,13 @@ if [ "$mux" != all ] && [ "${mux2dev[$mux]:-unset}" = unset ] ; then
     die "error [mux unknown: $mux]"
 fi
 
-check_valid_asn "$poison"
+for poison in "${poison_list[@]}" ; do
+    check_valid_asn "$poison"
+done
 check_valid_asn "$origin"
 
 if [[ $prepend -lt 0 || $prepend -gt 3 ]] ; then
     die "error [can prepend only 1, 2, or 3 times]"
-fi
-
-if [[ $poison -ne 0 && ($origin -ne 0 || $prepend -ne 0) ]] ; then
-    die "error [cannot -p with -o or -P]"
 fi
 
 if [ ! -e "$prefix_db" ] ; then
