@@ -70,7 +70,8 @@ do_announce () {  #{{{
 usage () {  # {{{
     cat <<-EOF
 Usage: peering prefix announce|withdraw [-m mux]
-                                        [-p poison | [-P prepend] [-o origin]]
+                                        [-P prepend] [-o origin]
+                                        [-p poison] ... [-p poison]
                                         [-c ASN,COMM] ... [-c ASN,COMM]
                                         [-l ASN,X,Y] ... [-l ASN,X,Y]
                                         prefix
@@ -85,12 +86,13 @@ withdraw    Withdraw prefix to one or all muxes.
             or withdrawn.  [default: $mux]
 -p asn      Prepend announcement to include the given ASN in the
             AS-path and trigger BGP loop prevention (poisoning).
-            Also known as BGP poisoning.  [default: do not poison]
--P N        Prepend origin (given with -o) N times.  Cannot be
-            combined with -p; can be combined with -o.  [default: 0]
+            Also known as BGP poisoning. Can be used multiple times
+            to poison multiple ASNs. Sets -P to 1 if not specified.
+            [default: do not poison]
+-P N        Prepend origin (given with -o) N times.  [default: 0]
 -o asn      Prepend announcement to include the given ASN as the
-            origin of the announcement.  Cannot be combined with -p;
-            sets -P to 1 if not specified.  [default: unchanged (47065)]
+            origin of the announcement. Sets -P to 1 if not specified.
+            [default: unchanged (47065)]
 
 -c ASN,COMM Attach community ASN,COMM to the announcement.  Can be used
             multiple times to attach multiple communities.  Only
