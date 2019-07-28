@@ -30,32 +30,33 @@ do_announce () {  #{{{
     local mux=$1
     local filterfn="$bird_filters/export_${mux}_$prefixfn.conf"
     echo "if ( net = $prefix ) then {" > "$filterfn"
-    if [ $origin -eq 0 ] ; then origin=47065 ; fi
-    if [ $prepend -eq 0 ] && [ $origin -ne 47065 ] ; then
-        prepend=1
+    if [[ $origin -eq 0 ]] ; then origin=47065 ; fi
+    if [[ $prepend -eq 0 ]] ; then
+        if [[ ${poison_list[*]:-undef} != undef ]] \
+                || [[ $origin -ne 47065 ]] ; then
+            prepend=1
+        fi
     fi
-    if [ $prepend -ne 0 ] ; then
-        for _i in $(seq 1 $prepend) ; do
+    if [[ $prepend -ne 0 ]] ; then
+        for _ in $(seq 1 $prepend) ; do
             echo "    bgp_path.prepend($origin);" >> "$filterfn"
         done
     fi
-    if [[ ${poison_list[@]:-undef} != undef ]] ; then
-        if [ $prepend -eq 0 ] && [ ${poison_list[0]} -ne $origin ] ; then
-            echo "    bgp_path.prepend($origin);" >> "$filterfn"
-        fi
+    if [[ ${poison_list[*]:-undef} != undef ]] ; then
         for poison in "${poison_list[@]}" ; do
             echo "    bgp_path.prepend($poison);" >> "$filterfn"
         done
-        if [ $origin -ne 47065 ] && [ ${poison_list[-1]} -ne $origin ] ; then
+        if [[ $origin -ne 47065 ]] \
+                && [[ ${poison_list[-1]} -ne $origin ]] ; then
             echo "    bgp_path.prepend($origin);" >> "$filterfn"
         fi
     fi
-    if [[ ${communities[@]:-undef} != undef ]] ; then
+    if [[ ${communities[*]:-undef} != undef ]] ; then
         for comm in "${communities[@]}" ; do
             echo "    bgp_community.add(($comm));" >> "$filterfn"
         done
     fi
-    if [[ ${large_communities[@]:-undef} != undef ]] ; then
+    if [[ ${large_communities[*]:-undef} != undef ]] ; then
         for comm in "${large_communities[@]}" ; do
             echo "    bgp_large_community.add(($comm));" >> "$filterfn"
         done
@@ -84,12 +85,15 @@ withdraw    Withdraw prefix to one or all muxes.
 
 -m mux      Control to which mux the prefix should be announced
             or withdrawn.  [default: $mux]
--p asn      Prepend announcement to include the given ASN in the
-            AS-path and trigger BGP loop prevention (poisoning).
-            Also known as BGP poisoning. Can be used multiple times
-            to poison multiple ASNs. Sets -P to 1 if not specified.
-            [default: do not poison]
+
+-p asn      Prepend announcement to include the given ASN in the AS-path
+            and trigger BGP loop prevention. Also known as BGP poisoning.
+            Can be used multiple times to poison multiple ASNs. Sets -P
+            to 1 if not specified, and enforces the origin ASN (-o) is
+            prepended after the poisons. [default: do not poison]
+
 -P N        Prepend origin (given with -o) N times.  [default: 0]
+
 -o asn      Prepend announcement to include the given ASN as the
             origin of the announcement. Sets -P to 1 if not specified.
             [default: unchanged (47065)]
