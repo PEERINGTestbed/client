@@ -183,9 +183,11 @@ if [ "$mux" != all ] && [ "${mux2dev[$mux]:-unset}" = unset ] ; then
     die "error [mux unknown: $mux]"
 fi
 
-for poison in "${poison_list[@]}" ; do
-    check_valid_asn "$poison"
-done
+if [[ ${poison_list[*]:-undef} != undef ]] ; then
+    for poison in "${poison_list[@]}" ; do
+        check_valid_asn "$poison"
+    done
+fi
 check_valid_asn "$origin"
 
 if [[ $prepend -lt 0 || $prepend -gt 3 ]] ; then
