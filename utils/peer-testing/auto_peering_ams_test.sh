@@ -21,7 +21,7 @@ cd $PEERING_DIR
 ./peering bgp start amsterdam01
 
 # input is the list of peering ids. I sorted that using CAIDA's AS rank list.
-input="/home/asmrizvi/Documents/PhD/2nd_Project/PEERING/client/client/commands_amsterdam_no.txt"
+input="amsterdam_list.txt"
 while IFS= read -r line
 do
 	echo "$line"
