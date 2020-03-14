@@ -1,7 +1,13 @@
 #!/bin/sh/
+# This code uses pinger to probe targets around the world: https://ant.isi.edu/software/verfploeter/pinger/index.html.
+# A smaller hitlist with 0.3 million IPs is provided with this code.
+# Please set the PEERING_DIR based on the installed location of PEERING.
+# Please set the OUTPUT_DIR to place the 
+# usage: sudo sh auto_peering_ams_test.sh PEERING_SOURCE_DIR OUTPUT_DIR PINGER_DIR
 
 PREFIX=184.164.238.0/24
-PEERING_DIR=/home/asmrizvi/Documents/PhD/2nd_Project/PEERING/client/client/
+PEERING_DIR=$1
+#PEERING_DIR=/home/asmrizvi/Documents/PhD/2nd_Project/PEERING/client/client/
 SOURCE_IP=100.69.128.1
 SOURCE_INTERFACE=tap5
 
@@ -10,8 +16,10 @@ MONTH=$(date +"%m")
 DAY=$(date +"%d")
 
 DATE=$YEAR-$MONTH-$DAY
-OUTPUT_DIR=/home/asmrizvi/Documents/PhD/2nd_Project/PEERING/client/client/captures-new/Selective_Peers/
-PINGER_DIR=/home/asmrizvi/Documents/PhD/2nd_Project/Software/pinger-pinger.v0.4.1-alpha/target/release/
+OUTPUT_DIR=$2
+#OUTPUT_DIR=/home/asmrizvi/Documents/PhD/2nd_Project/PEERING/client/client/captures-new/Selective_Peers/
+PINGER_DIR=$3
+#PINGER_DIR=/home/asmrizvi/Documents/PhD/2nd_Project/Software/pinger-pinger.v0.4.1-alpha/target/release/
 
 
 echo "BGP ANNOUNCEMENT"
@@ -41,7 +49,7 @@ do
 
 	cd $PINGER_DIR
 	echo "Starting pinger..."
-	cat ip_list_20190624_test.txt | ./pinger -s 184.164.238.33 -r 5000 -i 14001
+	xzcat ip_list_20190624_test.tar.xz | ./pinger -s 184.164.238.33 -r 5000 -i 14001
 	echo "Pinger done..."
 	sleep 60
 	pkill -9 tcpdump
