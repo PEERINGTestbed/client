@@ -16,6 +16,10 @@ ends in `.gz`, then the file will be compressed using Python's zlib.
 Note this script can take several minutes to complete if your client
 receives many routes (e.g., when you connect to AMS-IX).
 
+## export-peer-routes
+
+This scripts downloads the peer list from the PEERING website (normally available [here](https://peering.ee.columbia.edu/peers/)).  It reads data from the downloaded HTML file and exports it as JSON. (Contributed by Siwei Chen.)
+
 ## get-peer-csv
 
 This script simply downloads an up-to-date list of PEERING peers

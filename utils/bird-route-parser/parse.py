@@ -54,7 +54,7 @@ def show_protocols(reader, outfd):
     return results
 
 
-def show_route(reader, outfd, return_json=False):
+def show_route(reader, outfd):
     routes = list()
     network = None
     line = reader.readline()
@@ -71,11 +71,8 @@ def show_route(reader, outfd, return_json=False):
         )
         rt["attributes"] = v
         line = reader.readline()
-        json.dump(rt, outfd)
-        if line:
-            outfd.write("\n")
-        if return_json:
-            routes.append(rt)
+        routes.append(rt)
+    json.dump(routes, outfd)
     return routes
 
 
