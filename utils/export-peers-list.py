@@ -9,7 +9,7 @@ NonAsciiCharDict = {
 }
 
 url = "https://peering.ee.columbia.edu/peers/"
-json_filename = 'Export.json'
+json_filename = 'peers.json'
 
 with urllib.request.urlopen(url) as rsp:
     html = rsp.read()
@@ -31,8 +31,8 @@ with urllib.request.urlopen(url) as rsp:
 
             if idx < len(peers_attrs):
                 entry[peers_attrs[idx]] = value
-        
+
         result.append(entry)
-    
+
     with open(json_filename, 'w') as f:
         json.dump(result, f, indent=2)

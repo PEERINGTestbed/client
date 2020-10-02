@@ -119,7 +119,7 @@ or withdrawing prefixes, we support the following options:
   Can be used multiple times to send announcements through multiple
   peers.  Click [here][2] for a list of PEERING peers.
 
-  [2]: https://peering.usc.edu/peers/
+  [2]: https://peering.ee.columbia.edu/peers/
 
 ## Controlling TinyProxy
 
