@@ -114,8 +114,8 @@ withdraw    Withdraw prefix to one or all muxes.
 
             Announcements through each peer only see their filtering
             community.  The default behavior is to announce to all
-            peers.  See https://peering.usc.edu/peers for the list of
-            peers and their IDs.
+            peers.  See https://peering.ee.columbia.edu/peers for the
+            list of peers and their IDs.
 
             Special communities in the range 65535,65281--65284 defined
             in RFCs 1997 and 3765 are filtered and have no effect.
