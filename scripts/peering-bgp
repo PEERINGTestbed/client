@@ -97,7 +97,7 @@ adv)
     test $# -ge 2 || usage
     mux=$2
     test "${mux2dev[$mux]:-unset}" != "unset" || die "error [unknown mux: $mux]"
-    echo "show route export $mux" | $birdc_exec -s "$bird_sock"
+    echo "show route export $mux all" | $birdc_exec -s "$bird_sock"
     ;;
 *)
     usage
