@@ -135,6 +135,10 @@ named `container.txt`.  This information is necessary to compute
 prefixes and install routes, you can find it on the PEERING website
 dashboard.
 
+```
+echo ID > container.txt
+```
+
 * `peering proxy start mux`: start the proxy for communicating with
   the container on the given mux.
 
@@ -156,19 +160,20 @@ updating (add) 100.125.16.8/30 via 100.66.128.1 dev tap2
 updating (add) 2804:269c:ff03:2:2::/80 via 2804:269c:ff00:2:1::1 dev tap2
 ```
 
-After the proxy is configured, you can start using it *on the
-container* by setting the `http_proxy` environment variable to match
-TinyProxy's local address (above).
-
-```
-export http_proxy=http://100.68.128.8:8805/
-```
-
 You can SSH into your container by using the *second host* in the `/30`
-subnet.  You should login as `root` using your private key:
+subnet. In other words, SSH to the third address in the /30.  You should login as `root` using your private key:
 
 ```
 ssh -i ~/.ssh/peering_id_rsa root@100.125.16.10
+```
+
+You can use the proxy *on the container* by setting the `http_proxy`
+environment variable to match TinyProxy's local address (above).
+
+```
+export http_proxy=http://100.66.128.6:8802/
+apt update
+apt install bird
 ```
 
 ## Guidelines
