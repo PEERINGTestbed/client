@@ -73,36 +73,37 @@ function make_announcements {
     local upstream=$4
     local commstr
     for pfx in ${pfxa[@]} ; do
-        commstr=$(make_community_string $mux $upstream)
+        commstr=$(make_community_string $pfx $upstream)
         echo ./peering prefix announce -P 1 -m $mux $commstr $pfx
         ./peering prefix announce -P 1 -m $mux $commstr $pfx
     done
     for pfx in ${pfxb[@]} ; do
-        commstr=$(make_community_string $mux $upstream)
+        commstr=$(make_community_string $pfx $upstream)
         echo ./peering prefix announce -P 1 -o 61574 -m $mux $commstr $pfx
         ./peering prefix announce -P 1 -o 61574 -m $mux $commstr $pfx
     done
 }
 
-# sed -i "s/# router id 200.200.200.300;/router id 184.164.224.1;/" \
-#         configs/bird6/bird6.conf
+sed -i "s/# router id 200.200.200.300;/router id 184.164.224.1;/" \
+        configs/bird6/bird6.conf
 
-# shutdown_openvpn
-# sleep 3s
-# bgp_restart
-# sleep 3s
+shutdown_openvpn
+sleep 3s
+bgp_restart
+sleep 3s
 
-# withdraw_prefixes pfxset1a pfxset1b
-# mux1=clemson01
-# upstream1=none
-# ./peering openvpn up $mux1
-# make_announcements $mux1 pfxset1a pfxset1b $upstream1
-# ./peering bgp adv $mux1
+withdraw_prefixes pfxset1a pfxset1b
+mux1=gatech01
+upstream1=none
+./peering openvpn up $mux1
+make_announcements $mux1 pfxset1a pfxset1b $upstream1
+./peering bgp adv $mux1
+./peering bgp6 adv $mux1
 
 withdraw_prefixes pfxset2a pfxset2b
-mux2=amsterdam01
-upstream2=coloclue
-# ./peering openvpn up $mux2
+mux2=isi01
+upstream2=none
+./peering openvpn up $mux2
 make_announcements $mux2 pfxset2a pfxset2b $upstream2
 ./peering bgp adv $mux2
 ./peering bgp6 adv $mux2

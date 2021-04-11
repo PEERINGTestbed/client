@@ -173,8 +173,15 @@ environment variable to match TinyProxy's local address (above).
 ```
 export http_proxy=http://100.66.128.6:8802/
 apt update
-apt install bird
+apt install lighttpd
 ```
+
+Containers have limited RAM and disk space. The amount of RAM available
+on containers is *insufficient* to run a PEERING client on IXP sites
+(e.g., `amsterdam01` and `seattle01`). We recommend users run the
+PEERING client remotely (e.g., on the cloud or at a server in their
+institution), and route traffic into the container by rewriting the BGP
+next-hop field.
 
 ## Guidelines
 
