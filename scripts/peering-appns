@@ -1,0 +1,104 @@
+#!/bin/bash
+set -eu
+set -x
+
+usage () {
+    cat <<-EOF
+usage: peering appns create -p prefix [-n NSNAME] [-u UPSTREAM] [-d]
+
+-p PREFIX       Prefix that will be used in the application
+-n NSNAME       Name of the created namespace, should contain only [0-9a-z].
+                Defaults to peeringapp; interfaces have h and ns suffixes.
+-u UPSTREAM     Route egress traffic through specific upstream.  By default
+                traffic is routed through table 151 populated by BIRD.
+-d              Remove namespace, interfaces, and routes
+
+EOF
+    exit 0
+}
+
+die () {
+    echo "$1"
+    exit 1
+}
+
+
+nsname=peeringapp
+upstream=default
+delete=0
+prefix=invalid
+
+while getopts "n:u:p:dh" OPT; do
+case $OPT in
+n)
+    nsname="$OPTARG"
+    ;;
+u)
+    upstream="$OPTARG"
+    ;;
+p)
+    prefix="$OPTARG"
+    ;;
+d)
+    delete=1
+    ;;
+h|*)
+    usage
+    exit 0
+    ;;
+esac
+done
+shift $(( OPTIND - 1 ))
+OPTIND=1
+
+if ! cat "$prefix_db" "$prefix6_db" | grep "$prefix" &> /dev/null ; then
+    die "$prefix not in $prefix_db or $prefix6_db"
+fi
+
+load_mux2dev
+dev=${mux2dev[$upstream]}
+devid=${dev##tap}
+minus6="-4"
+if [[ $prefix =~ : ]] ; then
+    hostip=${prefix/::\//::fffe\/}
+    nsip=${prefix/::\//::ff01\/}
+    gwip=2804:269c:ff00:$(printf "%x" "$devid"):1::1/64
+    minus6="-6"
+else
+    hostip="${prefix%%.0/24}.254/24"
+    nsip="${prefix%%.0/24}.129/24"
+    gwip=100.$((64 + devid)).128.1
+fi
+
+if [[ $delete -eq 1 ]] ; then
+    ip netns del "$nsname"
+    ip link del "${nsname}h"
+    ip rule del iif "${nsname}h" &> /dev/null || true
+    if [[ $upstream != default ]] ; then
+        ip "$minus6" route flush table $((appns_table_base + devid))
+    fi
+    exit 0
+fi
+
+if ip netns list | cut -d " " -f 1 | grep "$nsname" ; then
+    die "namespace $nsname exists, remove with -d"
+fi
+
+ip netns add "$nsname"
+ip link add dev "${nsname}h" type veth peer name "${nsname}ns"
+ip addr add "$hostip" dev "${nsname}h"
+ip link set dev "${nsname}h" up
+ip link set dev "${nsname}ns" netns "${nsname}"
+ip netns exec "$nsname" ip link set dev "${nsname}ns" up
+ip netns exec "$nsname" ip addr add "$nsip" dev "${nsname}ns"
+ip netns exec "$nsname" ip route add default via "${hostip%%/*}"
+
+if [[ $upstream = default ]] ; then
+    ip "$minus6" rule add iif "${nsname}h" lookup "$kernel_table" \
+            pref "$kernel_table"
+else
+    # The table number is defined by the mux id to avoid conflicting defaults
+    tablenum=$((appns_table_base + devid))
+    ip route add default via ${gwip%%/*} dev "$dev" table "$tablenum"
+    ip "$minus6" rule add iif "${nsname}h" lookup "$tablenum" pref "$tablenum"
+fi

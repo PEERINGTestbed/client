@@ -3,7 +3,7 @@ set -eu
 
 usage () {
     cat <<-EOF
-usage: $0 cli|start|status|stop|adv mux
+usage: bgp <cli|start|status|stop|adv mux>
 
 cli         Start a BIRD command line interface for interacting with
             the BGP router directly.  Type '?' in the BIRD interface

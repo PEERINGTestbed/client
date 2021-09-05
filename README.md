@@ -183,6 +183,42 @@ PEERING client remotely (e.g., on the cloud or at a server in their
 institution), and route traffic into the container by rewriting the BGP
 next-hop field.
 
+## Running an application behind PEERING
+
+The `appns` module configures a network namespace with a single interface, and routes the network namespace through PEERING OpenVPN
+tunnels.
+
+```
+usage: peering appns create -p prefix [-n NSNAME] [-u UPSTREAM] [-d]
+
+-p PREFIX       Prefix that will be used in the application
+-n NSNAME       Name of the created namespace, should contain only
+                [0-9a-z]. Defaults to peeringapp; interfaces have h
+                and ns suffixes.
+-u UPSTREAM     Route egress traffic through specific upstream.  By
+                default traffic is routed through table 151 populated by BIRD.
+-d              Remove namespace, interfaces, and routes
+```
+
+Each namespace operates on a PEERING prefix (either v4 or v6).  By
+default, the namespace is called `peeringapp`. Users that need multiple
+namespace will need to change the name to avoid conflicts.  By default,
+the namespace routes egress traffic using table 151, which is populated
+by BIRD.  The `-u` option allows the user to choose a specific upstream
+to route out of.  The `-d` flag removes a given namespace; `-d` removes
+the namespace pointed to by `-n` and routes created through upstrema
+`-u`, so these parameters must be passed identically to when the
+namespace was created.
+
+### Troubleshooting
+
+In case sending traffic out of the namespace does not work, here are a list of things to check:
+
+* Check that PEERING OpenVPN tunnels and BGP sessions are up; announce a prefix and check reachability from the host.
+* Check that IP forwarding is enabled (e.g., run `sysctl -w net.ipv4.ip_forward=1`)
+* Check that the `FORWARD` chain in `iptables` is set to `ACCEPT`, and change it if needed (`iptables -P FORWARD ACCEPT`)
+* Check that the DNS resolver replies to requests from PEERING space
+
 ## Guidelines
 
 Follow these guidelines when using your PEERING client:
@@ -213,7 +249,7 @@ more complex announcements (e.g., make BGP announcements with BGP
 communities attached), these scripts provide a useful starting
 point.
 
-## More informations
+## Further information
 
 More informations about PEERING configuration:
 

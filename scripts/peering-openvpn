@@ -3,7 +3,7 @@ set -eu
 
 usage () {
     cat <<-EOF
-usage: $0 status|log mux|up mux|down mux
+usage: peering openvpn <status|log mux|up mux|down mux>
 
 status      Show the status of configured OpenVPN tunnels.
 

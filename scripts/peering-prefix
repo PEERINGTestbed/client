@@ -10,6 +10,7 @@ poison_list=()
 prepend=0
 origin=0
 prefix=invalid
+config_dataplane=1
 communities=()
 large_communities=()
 
@@ -75,6 +76,7 @@ Usage: peering prefix announce|withdraw [-m mux]
                                         [-p poison] ... [-p poison]
                                         [-c ASN,COMM] ... [-c ASN,COMM]
                                         [-l ASN,X,Y] ... [-l ASN,X,Y]
+                                        [-R]
                                         prefix
 
 Options can be specified in any order, but announce|withdraw must
@@ -130,6 +132,14 @@ withdraw    Withdraw prefix to one or all muxes.
             (Large communities are filtered by default and allowed upon
             request.)
 
+-R          Do not configure the data plane.  We setup a working data
+            plane by adding the .1 address of announced prefixes to the
+            loopback interface and setting outgoing packets to use
+            table 151, which is populated by BIRD.  This flag skips
+            configuration of the data plane, and is particularly useful
+            if using the appns submodule to avoid conflicting routing
+            rules.
+
 prefix      Choose the prefix to operate on.  Make sure the prefix
             has been allocated to you, or your announcement will be
             filtered by PEERING muxes.
@@ -143,7 +153,7 @@ test $# -ge 2 || usage
 test $EUID -eq 0 || die "The BIRD BGP daemon requires root access."
 
 OPTIND=2  # {{{
-while getopts "m:p:P:o:c:C:l:" opt "$@" ; do
+while getopts "m:p:P:o:c:C:l:R" opt "$@" ; do
 case $opt in
 m)  mux=$OPTARG ;;
 p)  poison_list+=($OPTARG) ;;
@@ -168,6 +178,9 @@ l)
         die "error [-l requires a string that matches '[0-9]{1,9},[0-9]{1,9},[0-9]{1,9}']"
     fi
     large_communities+=($OPTARG)
+    ;;
+R)
+    config_dataplane=0
     ;;
 *)  usage
 esac
@@ -250,8 +263,11 @@ announce)
         do_announce "$mux"
     fi
     echo "configure \"$bird_cfgfile\"" | $birdc_exec -s "$bird_sock"
-    ip $minus6 addr add "$pfxdot1" dev lo &> /dev/null || true
-    ip $minus6 rule add from "$prefix" table "$kernel_table" pref "$kernel_table" &> /dev/null || true
+    if [ $config_dataplane -eq 1 ] ; then
+        ip $minus6 addr add "$pfxdot1" dev lo &> /dev/null || true
+        ip $minus6 rule add from "$prefix" table "$kernel_table" \
+                pref "$kernel_table" &> /dev/null || true
+    fi
     ;;
 withdraw)
     if [ "$mux" = all ] ; then
@@ -259,7 +275,8 @@ withdraw)
             rm -f "$bird_filters/export_${cmux}_$prefixfn.conf"
         done
         ip $minus6 addr del "$pfxdot1" dev lo &> /dev/null || true
-        ip $minus6 rule del from "$prefix" table "$kernel_table" pref "$kernel_table" &> /dev/null || true
+        ip $minus6 rule del from "$prefix" table "$kernel_table" \
+                pref "$kernel_table" &> /dev/null || true
     else
         rm -f "$bird_filters/export_${mux}_$prefixfn.conf"
     fi

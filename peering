@@ -7,7 +7,7 @@ export progdir=$(cd "$(dirname "$0")"; pwd -P)
 
 usage () {
     cat <<-EOF
-usage: $0 openvpn|bgp|bgp6|prefix
+usage: $0 openvpn|bgp|bgp6|prefix|proxy|appns
 
 openvpn     Control OpenVPN tunnels
 
@@ -17,7 +17,9 @@ bgp6        Control IPv6 BGP router (BIRD6)
 
 prefix      Control prefix announcements
 
-proxy	    Control proxy for containers
+proxy       Control proxy for containers
+
+appns       Create and delete namespaces for applications
 
 EOF
     exit 0
@@ -28,23 +30,27 @@ test $# -ge 1 || usage
 case $1 in
 openvpn)
     shift
-    "$progdir"/scripts/peering-openvpn "$@"
+    "$progdir/scripts/peering-openvpn" "$@"
     ;;
 bgp)
     shift
-    "$progdir"/scripts/peering-bgp "$@"
+    "$progdir/scripts/peering-bgp" "$@"
     ;;
 bgp6)
     shift
-    "$progdir"/scripts/peering-bgp v6 "$@"
+    "$progdir/scripts/peering-bgp" v6 "$@"
     ;;
 prefix)
     shift
-    "$progdir"/scripts/peering-prefix "$@"
+    "$progdir/scripts/peering-prefix" "$@"
     ;;
 proxy)
     shift
-    "$progdir"/scripts/peering-proxy "$@"
+    "$progdir/scripts/peering-proxy" "$@"
+    ;;
+appns)
+    shift
+    "$progdir/scripts/peering-appns" "$@"
     ;;
 *)
     usage

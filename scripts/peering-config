@@ -25,6 +25,7 @@ export mux2dev_db="$varrun/mux2dev.txt"
 export ctxid_db="$progdir/container.txt"
 export prefix_db="$progdir/prefixes.txt"
 export prefix6_db="$progdir/prefixes6.txt"
+export appns_table_base=100
 export kernel_table=151
 
 load_mux2dev () {

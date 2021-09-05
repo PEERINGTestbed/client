@@ -3,7 +3,7 @@ set -eu
 
 usage () {
     cat <<-EOF
-usage: $0 <status|start mux|stop mux>
+usage: peering proxy <status|start mux|stop mux>
 
 status      Show running proxies.
 
