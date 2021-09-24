@@ -88,7 +88,7 @@ We support five operations to interact with BIRD:
 ## Controlling prefix announcements
 
 ```
-usage: peering prefix announce|withdraw [-m mux]
+usage: peering prefix announce|withdraw|lxc [-m mux]
                                         [-p poison | [-P prepend] [-o origin]]
                                         [-c id1] ... [-c idN]
                                         prefix
