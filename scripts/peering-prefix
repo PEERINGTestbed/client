@@ -26,6 +26,15 @@ check_valid_asn () {  # {{{
     fi
 }  # }}}
 
+change_client_nexthop(){
+    local mux=$1
+    local filterfn="$bird_filters/export_${mux}_$prefixfn.conf"
+    echo "if ( net = $prefix ) then {" > "$filterfn"
+    echo "bgp_next_hop=100.125.8.6;" >> "$filterfn" #parametrizar
+    echo "accept; }" >> "$filterfn"
+    filterfn=$bird_routes/$prefixfn
+    echo "route $prefix unreachable;" > "$filterfn" #parametrizar
+}
 
 do_announce () {  #{{{
     local mux=$1
@@ -71,7 +80,7 @@ do_announce () {  #{{{
 
 usage () {  # {{{
     cat <<-EOF
-Usage: peering prefix announce|withdraw [-m mux]
+Usage: peering prefix announce|withdraw|lxc [-m mux]
                                         [-P prepend] [-o origin]
                                         [-p poison] ... [-p poison]
                                         [-c ASN,COMM] ... [-c ASN,COMM]
@@ -79,11 +88,13 @@ Usage: peering prefix announce|withdraw [-m mux]
                                         [-R]
                                         prefix
 
-Options can be specified in any order, but announce|withdraw must
+Options can be specified in any order, but announce|withdraw|lxc must
 be the first argument and prefix must be the last.
 
 announce    Announce prefix to one or all muxes.
 withdraw    Withdraw prefix to one or all muxes.
+lxc         Changes downstream client's nexthop by setting the container
+            as the advertiser, to one or all muxes.
 
 -m mux      Control to which mux the prefix should be announced
             or withdrawn.  [default: $mux]
@@ -156,11 +167,11 @@ OPTIND=2  # {{{
 while getopts "m:p:P:o:c:C:l:R" opt "$@" ; do
 case $opt in
 m)  mux=$OPTARG ;;
-p)  poison_list+=($OPTARG) ;;
-P)  prepend=$OPTARG ;;
-o)  origin=$OPTARG ;;
+p)  poison_list+=("$OPTARG") ;;
+P)  prepend="$OPTARG" ;;
+o)  origin="$OPTARG" ;;
 c|C)
-    if ! [[ $OPTARG =~ [0-9]+,[0-9]+ ]] ; then
+    if ! [[ "$OPTARG" =~ [0-9]+,[0-9]+ ]] ; then
         die "error [-c requires a string that matches '[0-9]+,[0-9]+']"
     fi
     ctoken=${OPTARG%,*}
@@ -171,13 +182,13 @@ c|C)
     if [[ $ctoken -gt 65535 || $ctoken -lt 0 ]] ; then
         die "error [-c ASN:COMM accepts only 16-bit numbers]"
     fi
-    communities+=($OPTARG)
+    communities+=("$OPTARG")
     ;;
 l)
-    if ! [[ $OPTARG =~ [0-9]{1,9},[0-9]{1,9},[0-9]{1,9} ]] ; then
+    if ! [[ "$OPTARG" =~ [0-9]{1,9},[0-9]{1,9},[0-9]{1,9} ]] ; then
         die "error [-l requires a string that matches '[0-9]{1,9},[0-9]{1,9},[0-9]{1,9}']"
     fi
-    large_communities+=($OPTARG)
+    large_communities+=("$OPTARG")
     ;;
 R)
     config_dataplane=0
@@ -279,6 +290,18 @@ withdraw)
                 pref "$kernel_table" &> /dev/null || true
     else
         rm -f "$bird_filters/export_${mux}_$prefixfn.conf"
+    fi
+    echo "configure \"$bird_cfgfile\"" | $birdc_exec -s "$bird_sock"
+    ;;
+lxc)
+    #rm -f "$bird_routes/$prefixfn"
+    #rm -f "$bird_filters/export_${mux}_$prefixfn.conf"
+    if [ "$mux" = all ] ; then
+        for cmux in "${!mux2dev[@]}" ; do
+            change_client_nexthop "$cmux"
+        done
+    else
+        change_client_nexthop "$mux"
     fi
     echo "configure \"$bird_cfgfile\"" | $birdc_exec -s "$bird_sock"
     ;;
