@@ -3,7 +3,12 @@
 # This script is provided as a convenience, please do not misuse/abuse
 # AT&T's server.
 
+import argparse
+import pathlib
 import pexpect
+import resource
+import sys
+
 
 DESTINATIONS = [
     "138.185.228.0/24",
@@ -24,26 +29,55 @@ DESTINATIONS = [
     "2804:269c:3::/48",
 ]
 
-logfile = open("query.out", "wb")
+def create_parser():
+    desc = """Query AT&T's route server for specific prefixes"""
+    parser = argparse.ArgumentParser(description=desc)
+    parser.add_argument(
+        "prefixes",
+        nargs="*",
+        default=DESTINATIONS,
+        help="List of prefixes to query")
+    parser.add_argument(
+        "--log",
+        dest="logfn",
+        metavar="FILE",
+        required=True,
+        type=pathlib.Path,
+        help="Output file where to store routes",
+    )
+    return parser
 
-handle = pexpect.spawn("telnet route-server.ip.att.net")
-handle = pexpect.spawn("telnet 12.0.1.28")
-handle.logfile = logfile
 
-handle.expect("login:")
-handle.sendline("rviews")
-handle.expect("Password:")
-handle.sendline("rviews")
+def main():
+    resource.setrlimit(resource.RLIMIT_AS, (1 << 33, 1 << 33))
+    resource.setrlimit(resource.RLIMIT_FSIZE, (1 << 35, 1 << 35))
 
-handle.expect("route-server.ip.att.net>")
-for dst in DESTINATIONS:
-    handle.sendline(f"show route {dst}")
-    entry = handle.expect([r"---\(more\)---", "route-server.ip.att.net>"])
-    if entry == 0:
-        handle.send("q")
-        handle.expect("route-server.ip.att.net>")
+    parser = create_parser()
+    opts = parser.parse_args()
 
-handle.sendline("exit")
+    logfile = open(opts.logfn, "wb")
 
-handle.logfile.close()
-handle.close()
+    # handle = pexpect.spawn("telnet route-server.ip.att.net")
+    handle = pexpect.spawn("telnet 12.0.1.28")
+    handle.logfile = logfile
+
+    handle.expect("login:")
+    handle.sendline("rviews")
+    handle.expect("Password:")
+    handle.sendline("rviews")
+
+    handle.expect("route-server.ip.att.net>")
+    for dst in opts.prefixes:
+        handle.sendline(f"show route {dst}")
+        entry = handle.expect([r"---\(more\)---", "route-server.ip.att.net>"])
+        if entry == 0:
+            handle.send("q")
+            handle.expect("route-server.ip.att.net>")
+
+    handle.sendline("exit")
+
+    handle.logfile.close()
+    handle.close()
+
+if __name__ == "__main__":
+    sys.exit(main())
