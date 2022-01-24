@@ -1,9 +1,10 @@
-export varrun="$progdir/var"
+export peeringdir=$(cd "$(dirname "$(readlink -f "${BASH_SOURCE[0]}")")/.."; pwd -P)
+export varrun="$peeringdir/var"
 
 export bird_exec="bird"
 export birdc_exec="birdc"
 export bird_sock="$varrun/bird.ctl"
-export bird_cfgs="$progdir/configs/bird"
+export bird_cfgs="$peeringdir/configs/bird"
 export bird_cfgfile="$bird_cfgs/bird.conf"
 export bird_routes="$bird_cfgs/route-announcements"
 export bird_filters="$bird_cfgs/prefix-filters"
@@ -11,25 +12,26 @@ export bird_filters="$bird_cfgs/prefix-filters"
 export bird6_exec="bird6"
 export birdc6_exec="birdc6"
 export bird6_sock="$varrun/bird6.ctl"
-export bird6_cfgs="$progdir/configs/bird6"
+export bird6_cfgs="$peeringdir/configs/bird6"
 export bird6_cfgfile="$bird6_cfgs/bird6.conf"
 export bird6_routes="$bird6_cfgs/route-announcements"
 export bird6_filters="$bird6_cfgs/prefix-filters"
 
-export openvpn_cfgs="$progdir/configs/openvpn"
+export openvpn_cfgs="$peeringdir/configs/openvpn"
 
-export tinyproxy_cfgs="$progdir/configs/tinyproxy"
-export tinyproxy_template="$progdir/configs/tinyproxy/tinyproxy.conf.template"
+export tinyproxy_cfgs="$peeringdir/configs/tinyproxy"
+export tinyproxy_template="$peeringdir/configs/tinyproxy/tinyproxy.conf.template"
 
 export mux2dev_db="$varrun/mux2dev.txt"
-export ctxid_db="$progdir/container.txt"
-export prefix_db="$progdir/prefixes.txt"
-export prefix6_db="$progdir/prefixes6.txt"
+export ctxid_db="$peeringdir/container.txt"
+export prefix_db="$peeringdir/prefixes.txt"
+export prefix6_db="$peeringdir/prefixes6.txt"
 export appns_table_base=100
 export kernel_table=151
 
 load_mux2dev () {
     declare -gA mux2dev
+    export mux2dev
     while read -r fmux fdev ; do
         mux2dev[$fmux]=$fdev
     done < "$mux2dev_db"
@@ -53,7 +55,7 @@ export -f die
 
 if [ ! -s "$mux2dev_db" ] ; then
     echo "rebuilding $mux2dev_db"
-    for fn in $openvpn_cfgs/*.conf ; do
+    for fn in "$openvpn_cfgs"/*.conf ; do
         name=$(basename "$fn")
         name=${name%%.conf}
         echo -n "$name " >> "$mux2dev_db"

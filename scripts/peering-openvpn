@@ -21,7 +21,7 @@ mux_status_check() {
     local mux=$1
     local dev=${mux2dev[$mux]:-unset}
     test "$dev" != unset || die "error [mux $mux unknown]"
-    if ! echo quit | socat - "UNIX:var/$mux.sock" &> /dev/null ; then
+    if ! echo quit | socat - "UNIX:$varrun/$mux.sock" &> /dev/null ; then
         rm -f "$varrun/$mux.pid"
         rm -f "$varrun/$mux.sock"
         rm -f "$varrun/$mux.updown"
