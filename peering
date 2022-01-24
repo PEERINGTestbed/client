@@ -3,7 +3,7 @@ set -eu
 
 program=$(basename "$0")
 export progdir=$(cd "$(dirname "$0")"; pwd -P)
-. "$progdir/scripts/peering-config"
+source "$progdir/scripts/peering-config"
 
 usage () {
     cat <<-EOF
