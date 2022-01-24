@@ -1,12 +1,13 @@
 #!/bin/bash
 set -eu
-set -x
 
 usage () {
     cat <<-EOF
 usage: peering appns create -p prefix [-n NSNAME] [-u UPSTREAM] [-d]
 
--p PREFIX       Prefix that will be used in the application
+-p PREFIX       Prefix to be used in the application. The first address will
+                be assigned on the application's interface, and the last address
+                will be assigned to the host interface and used as a gateway.
 -n NSNAME       Name of the created namespace, should contain only [0-9a-z].
                 Defaults to peeringapp; interfaces have h and ns suffixes.
 -u UPSTREAM     Route egress traffic through specific upstream.  By default
@@ -51,24 +52,33 @@ done
 shift $(( OPTIND - 1 ))
 OPTIND=1
 
-if ! cat "$prefix_db" "$prefix6_db" | grep "$prefix" &> /dev/null ; then
-    die "$prefix not in $prefix_db or $prefix6_db"
-fi
-
 load_mux2dev
 dev=${mux2dev[$upstream]}
 devid=${dev##tap}
 minus6="-4"
+pfxlen=${prefix##*/}
 if [[ $prefix =~ : ]] ; then
-    hostip=${prefix/::\//::fffe\/}
-    nsip=${prefix/::\//::ff01\/}
+    appip=$(ipcalc -n -b "$prefix" | grep HostMin | awk '{print $2;}')
+    hostip=$(ipcalc -n -b "$prefix" | grep HostMax | awk '{print $2;}')
+    fprefix=$(echo "$prefix" | sed -e "s|::[0-9a-f]*/[0-9]*|::\/48|")
     gwip=2804:269c:ff00:$(printf "%x" "$devid"):1::1/64
     minus6="-6"
 else
-    hostip="${prefix%%.0/24}.254/24"
-    nsip="${prefix%%.0/24}.129/24"
+    appip=$(ipcalc -n -b "$prefix" | grep HostMin | awk '{print $2;}')
+    hostip=$(ipcalc -n -b "$prefix" | grep HostMax | awk '{print $2;}')
+    fprefix=$(echo "$prefix" | sed -e "s|.[0-9]*/[0-9-]*|.0/24|")
     gwip=100.$((64 + devid)).128.1
 fi
+
+if ! cat "$prefix_db" "$prefix6_db" | grep "$fprefix" &> /dev/null ; then
+    die "$fprefix not in $prefix_db or $prefix6_db"
+fi
+
+echo "Namespace: $nsname"
+echo "Prefix: $prefix"
+echo "Application IP: $appip"
+echo "Application gateway: $hostip"
+echo "PEERING prefix: $fprefix"
 
 if [[ $delete -eq 1 ]] ; then
     ip netns del "$nsname"
@@ -86,11 +96,11 @@ fi
 
 ip netns add "$nsname"
 ip link add dev "${nsname}h" type veth peer name "${nsname}ns"
-ip addr add "$hostip" dev "${nsname}h"
+ip addr add "$hostip/$pfxlen" dev "${nsname}h"
 ip link set dev "${nsname}h" up
 ip link set dev "${nsname}ns" netns "${nsname}"
 ip netns exec "$nsname" ip link set dev "${nsname}ns" up
-ip netns exec "$nsname" ip addr add "$nsip" dev "${nsname}ns"
+ip netns exec "$nsname" ip addr add "$appip/$pfxlen" dev "${nsname}ns"
 ip netns exec "$nsname" ip route add default via "${hostip%%/*}"
 
 if [[ $upstream = default ]] ; then
