@@ -5,9 +5,10 @@
 
 import argparse
 import pathlib
-import pexpect
 import resource
 import sys
+
+import pexpect
 
 
 DESTINATIONS = [
