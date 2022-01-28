@@ -1,7 +1,10 @@
 prefixes.txt
 prefixes6.txt
+container.txt
 var
 configs/bird/prefix-filters
 configs/bird/route-announcements
 configs/bird6/prefix-filters
 configs/bird6/route-announcements
+revtr*outdir
+utils/prefix-propagation/query.out
