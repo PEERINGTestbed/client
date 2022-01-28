@@ -1,3 +1,5 @@
+#!/usr/bin/env python3
+
 import json
 import os
 import subprocess
@@ -7,7 +9,7 @@ import jinja2
 import jsonschema
 
 
-class AnnouncementController(object):
+class AnnouncementController:
     def __init__(self, bird_cfg_dir, bird_sock, schema_fn):
         with open(schema_fn) as fd:
             self.schema = json.load(fd)
