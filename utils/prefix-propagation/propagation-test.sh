@@ -27,7 +27,7 @@ function shutdown_openvpn {
     if [[ ! -s var/mux2dev.txt ]] ; then
         ./peering openvpn status &> /dev/null
     fi
-    while read -r mux tapdev ; do
+    while read -r mux _tapdev ; do
         ./peering openvpn down $mux
     done < var/mux2dev.txt
 }
@@ -35,8 +35,8 @@ function shutdown_openvpn {
 function withdraw_prefixes {
     local -n pfxa=$1
     local -n pfxb=$2
-    echo "Withdrawing prefixes ${pfxa[@]} ${pfxb[@]}"
-    for pfx in ${pfxa[@]} ${pfxb[@]} ; do
+    echo "Withdrawing prefixes ${pfxa[*]} ${pfxb[*]}"
+    for pfx in "${pfxa[@]}" "${pfxb[@]}" ; do
         ./peering prefix withdraw $pfx
     done
 }
@@ -72,12 +72,12 @@ function make_announcements {
     local -n pfxb=$3
     local upstream=$4
     local commstr
-    for pfx in ${pfxa[@]} ; do
+    for pfx in "${pfxa[@]}" ; do
         commstr=$(make_community_string $pfx $upstream)
         echo ./peering prefix announce -P 1 -m $mux $commstr $pfx
         ./peering prefix announce -P 1 -m $mux $commstr $pfx
     done
-    for pfx in ${pfxb[@]} ; do
+    for pfx in "${pfxb[@]}" ; do
         commstr=$(make_community_string $pfx $upstream)
         echo ./peering prefix announce -P 1 -o 61574 -m $mux $commstr $pfx
         ./peering prefix announce -P 1 -o 61574 -m $mux $commstr $pfx
