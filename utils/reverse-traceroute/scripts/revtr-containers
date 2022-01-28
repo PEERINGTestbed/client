@@ -1,0 +1,48 @@
+#!/bin/bash
+set -eu
+
+progdir=$(cd "$(dirname "$(readlink -f "$0")")"; pwd -P)
+source "$progdir/config.sh"
+
+function start_containers {
+    echo "Starting revtrvp containers"
+    for mux in "${!mux2octet[@]}" ; do
+        local muxid=${mux2id[$mux]}
+        local octet=${mux2octet[$mux]}
+        local ip=184.164.$octet.$((128 + muxid))
+        local ctxname=$CTX_NAME_PREFIX-$mux
+        echo "  $ctxname on br$octet using $ip"
+        docker run --name "$ctxname" --network="br$octet" --ip "$ip" \
+                --restart=unless-stopped --detach \
+                --log-opt max-size=1g --log-opt max-file=1 \
+                revtrvp /root.crt /plvp.config -loglevel debug &> /dev/null
+    done
+}
+
+function stop_containers {
+    echo "Stopping revtrvp containers"
+    for mux in "${!mux2octet[@]}" ; do
+        ctxname=$CTX_NAME_PREFIX-$mux
+        if docker ps | grep "$ctxname" &> /dev/null ; then
+            echo "  $ctxname"
+            docker stop "$ctxname" &> /dev/null
+            docker rm "$ctxname" &> /dev/null
+        fi
+    done
+}
+
+case $1 in
+restart)
+    stop_containers
+    start_containers
+    ;;
+start)
+    start_containers
+    ;;
+stop)
+    stop_containers
+    ;;
+*)
+    die "usage: $0 start|stop|restart"
+    ;;
+esac
