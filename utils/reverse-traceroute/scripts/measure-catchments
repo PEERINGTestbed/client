@@ -14,15 +14,20 @@ fi
 
 mkdir -p "$outdir"
 
+rm -f "$outdir/mux-tap-dump.txt"
+rm -f "$outdir/src-emux-remotes.txt"
 echo "Starting tcpdump"
 for mux in "${!mux2octet[@]}" ; do
     devid=${mux2id[$mux]}
     dev=tap$devid
+    ip="184.164.${mux2octet[$mux]}.$(( 128 + devid ))"
     tcpdump --packet-buffered -n -w "$outdir/$mux.dump" -i "$dev" \
             "dst net $SUPERPREFIX and icmp[icmptype] == icmp-echoreply" \
             &> "$outdir/$mux.log" &
     pid=$!
     echo $pid > "$outdir/$mux.pid"
+    echo "$mux $dev $outdir/$mux.dump" >> "$outdir/mux-tap-dump.txt"
+    echo "$ip $mux $tgtdir/${mux}_targets.txt" >> "$outdir/src-emux-remotes.txt"
 done
 
 echo "Launching scamper within containers"
