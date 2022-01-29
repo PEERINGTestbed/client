@@ -5,7 +5,7 @@ export CTX_NAME_PREFIX=revtr
 export USER=cunha
 export GROUP=cunha
 
-export OUTDIR=revtr-ispy-exp-outdir/
+export OUTDIR=utils/reverse-traceroute/results/revtr-ispy-exp
 export REMOTE_SCRIPTS_DIR=scripts/remote/
 
 export BASE_TABLE=50
@@ -25,7 +25,7 @@ export CONTAINER_START_TIME=$((60))  # Docker
 export CONVERGENCE_TIME=$((25*60))  # BGP
 export REVTR_WAIT_TIME=$((15*60))  # RevTr (last batch only)
 
-export REVTR_LABEL=revtr_ispy_t2
+export REVTR_LABEL=revtr_ispy_t3
 
 declare -gA mux2octet
 export mux2octet
