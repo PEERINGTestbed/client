@@ -2,6 +2,9 @@
 
 export CTX_NAME_PREFIX=revtr
 
+export CDIR=/home/cunha/git/peering/client
+export OPENVPN_DELAY_SEC=10
+
 export USER=cunha
 export GROUP=cunha
 
@@ -25,7 +28,7 @@ export CONTAINER_START_TIME=$((60))  # Docker
 export CONVERGENCE_TIME=$((25*60))  # BGP
 export REVTR_WAIT_TIME=$((15*60))  # RevTr (last batch only)
 
-export REVTR_LABEL=revtr_ispy_t3
+export REVTR_LABEL=revtr_ispy_t4
 
 declare -gA mux2octet
 export mux2octet

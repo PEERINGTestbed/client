@@ -2,6 +2,9 @@
 
 export CTX_NAME_PREFIX=revtr
 
+export CDIR=/home/cunha/git/peering/client
+export OPENVPN_DELAY_SEC=10
+
 export USER=cunha
 export GROUP=cunha
 
