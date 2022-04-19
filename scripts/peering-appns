@@ -3,7 +3,7 @@ set -eu
 
 usage () {
     cat <<-EOF
-usage: peering appns create -p prefix [-n NSNAME] [-u UPSTREAM] [-d]
+usage: peering appns -p prefix [-n NSNAME] [-u UPSTREAM] [-d]
 
 -p PREFIX       Prefix to be used in the application. The first address will
                 be assigned on the application's interface, and the last address
