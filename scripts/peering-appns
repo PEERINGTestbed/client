@@ -76,6 +76,13 @@ if ! cat "$prefix_db" "$prefix6_db" | grep "$fprefix" &> /dev/null ; then
     die "$fprefix not in $prefix_db or $prefix6_db"
 fi
 
+if ip addr | grep -Ee "inet6? $appip" &> /dev/null ; then
+    echo "Application IP $appip is assigned to an interface on the host."
+    echo "ARP resolution and the data plane in the namespace will not work."
+    echo "Consider using the -R parameter to the [peering prefix] command."
+    die "Aborting."
+fi
+
 echo "Namespace: $nsname"
 echo "Prefix: $prefix"
 echo "Application IP: $appip"
