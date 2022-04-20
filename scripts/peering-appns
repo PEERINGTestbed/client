@@ -52,9 +52,11 @@ done
 shift $(( OPTIND - 1 ))
 OPTIND=1
 
-load_mux2dev
-dev=${mux2dev[$upstream]}
-devid=${dev##tap}
+if [[ $prefix = invalid ]] ; then
+    usage
+    exit 0
+fi
+
 minus6="-4"
 pfxlen=${prefix##*/}
 if [[ $prefix =~ : ]] ; then
