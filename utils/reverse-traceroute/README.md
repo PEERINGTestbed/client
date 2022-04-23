@@ -6,7 +6,7 @@ The Docker container for the revtr VP assumes a single interface. To do
 this, we configure Docker to *not* NAT the addresses of containers.
 Create a network for the container that bypasses NAT. We configure
 Docker to hand out addresses in the PEERING prefix to be used for the
-VP. This task is performed by `create_docker_bridges` function.
+VP. This task is performed by the `create_docker_bridges` function.
 
 ## Establish OpenVPN tunnels and BGP sessions
 
@@ -26,11 +26,12 @@ sessions.
 
 We also need to source-route packets from the Reverse Traceroute
 container to use PEERING as an upstream. We create a specific routing
-table for each mux, and add a default route pointing to the mux's IP
-address on the OpenVPN tunnel.  For example, `uw01` has `id` 10, so uses
-`tap10` as the OpenVPN tunnel and `100.(64+10).128.1` on its end of the
-OpenVPN tunnel. Packets are routed to this specific routing table
-according to the source IP assress of Docker container. We configure
+table for each mux (the table number is given by `50` plus the mux
+`id`), and add a default route pointing to the mux's IP address on the
+OpenVPN tunnel.  For example, `uw01` has `id` 10, so uses `tap10` as the
+OpenVPN tunnel, `100.(64+10).128.1` on its end of the OpenVPN tunnel,
+and table `60`. Packets are routed to a mux's specific routing table
+according to the source IP address of the Docker container. We configure
 this in the `setup_source_routing` function.
 
 ## Make announcements
@@ -75,7 +76,7 @@ pip3 install pexpect
 
 ## Configuration
 
-We keep two configurations file around, one for testing (`-test`) and
+We keep two configuration files around, one for testing (`-test`) and
 another for executing experiments (`-prod`). Link to these files from
 `client.sh` and `client.py` as needed.
 
@@ -85,22 +86,9 @@ Our tests on Sep. 7th, 2021 indicated the following muxes can receive RR
 packets: grnet01, uw01, clemson01, neu01, gatech01, wisc01, ufmg01,
 utah01, amsterdam01, seattle01.  (At the moment of writing, PNWGP is not
 forwarding packets from Internet2 to the wide area Internet. We can
-bypass this problem poisonin AS101.)
+bypass this problem poisoning AS101.)
 
 * Update on 2022-01-24: It seems ufmg01 cannot receive RR packets.
 * Update on 2022-01-28: False alarm, it can receive RRs just fine, the
   false alarm is caused by something else, possibly delayed BGP
   convergence. utah01 is experiencing similar problems.
-
-grnet01 gatech01 wisc01 neu01 ufmg01
-
-## PEERING prefix allocations to restore after SIGCOMM deadline
-
-Experiment: Comparison between Bdrmapit and classic IP-to-AS strategies
-Prefix: 184.164.248.0/24
-
-Experiment: Locating DDoS Attackers
-Prefix: 184.164.250.0/24
-Prefix: 184.164.251.0/24
-Prefix: 184.164.252.0/24
-Prefix: 184.164.253.0/24
