@@ -62,7 +62,7 @@ down)
     mux_status_check "$mux"
     if [[ $mstat =~ ^down$ ]] ; then term "tunnel $mux already down" ; fi
     dev=${mux2dev[$mux]}
-    echo "signal SIGTERM" | socat - "UNIX:var/$mux.sock" > /dev/null
+    echo "signal SIGTERM" | socat - "UNIX:$varrun/$mux.sock" > /dev/null
     rm -f "$varrun/$mux.pid"
     rm -f "$varrun/$mux.sock"
     rm -f "$varrun/$mux.updown"
