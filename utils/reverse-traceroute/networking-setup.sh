@@ -1,7 +1,8 @@
 #!/bin/bash
 set -u
 
-export progdir=$(cd "$(dirname "$(readlink -f "$0")")"; pwd -P)
+progdir=$(cd "$(dirname "$(readlink -f "$0")")" && pwd -P)
+export progdir
 source "$progdir/config.sh"
 
 
@@ -12,7 +13,7 @@ announce_params=( )
 function create_docker_bridges {
     teardown_docker_bridges
     echo "Creating Docker bridges"
-    for octet in "${mux2octet[@]}" ; do
+    for octet in "${octets[@]}" ; do
         echo "  br$octet 184.164.$octet.128/25"
         docker network create --driver bridge \
                 --opt "com.docker.network.bridge.enable_ip_masquerade=false" \
@@ -26,7 +27,7 @@ function create_docker_bridges {
 
 function teardown_docker_bridges {
     echo "Removing Docker bridges"
-    for octet in "${mux2octet[@]}" ; do
+    for octet in "${octets[@]}" ; do
         if docker network inspect "br$octet" &> /dev/null ; then
             echo "  br$octet"
             docker network rm "br$octet" &> /dev/null
@@ -37,7 +38,7 @@ function teardown_docker_bridges {
 function establish_bgp_sessions {
     teardown_bgp_sessions
     echo "Starting OpenVPN tunnels"
-    for mux in "${!mux2octet[@]}" ; do
+    for mux in "${!mux2id[@]}" ; do
         echo "  up $mux"
         "$CDIR/peering" openvpn up "$mux"
     done
@@ -65,50 +66,28 @@ function teardown_bgp_sessions {
     fi
 }
 
-function setup_source_routing {
-    teardown_source_routing
-    echo "Setting up source routing"
-    for mux in "${!mux2octet[@]}" ; do
-        devid=${mux2id[$mux]}
-        octet=${mux2octet[$mux]}
-        table=$((BASE_TABLE + devid))
-        ip="184.164.$octet.$((128 + devid))"
-        gw="100.$((64 + devid)).128.1"
-        echo "  $mux: from $ip/32 table $table via $gw"
-        ip route add default via $gw table $table
-        ip rule add from "$ip/32" table $table pref $table
-        ip rule add iif "br$octet" table $table pref $table
-    done
-}
-
-function teardown_source_routing {
-    echo "Tearing down source routing"
-    for mux in "${!mux2octet[@]}" ; do
-        devid=${mux2id[$mux]}
-        table=$((BASE_TABLE + devid))
-        nrules=$(ip rule show pref $table | wc -l)
-        echo "  $mux: dropping table $table and $nrules rules"
-        ip route flush table $table &> /dev/null || true
-        while [[ $(( nrules-- )) -gt 0 ]] ; do
-            ip rule del pref $table
-        done
-    done
-}
-
-function withdraw_prefixes {
+function test_withdraw_prefixes {
     echo "Withdrawing prefixes"
-    for octet in "${mux2octet[@]}" ; do
+    for octet in "${!test_octet2mux[@]}" ; do
         local prefix=184.164.$octet.0/24
-        echo "  $prefix"
+        echo "  withdraw $prefix"
         "$CDIR/peering" prefix withdraw "$prefix" &> /dev/null
     done
 }
 
-function announce_prefixes {
-    withdraw_prefixes
+function test_teardown_source_routing {
+    echo "Tearing down source routes"
+    for octet in "${!test_octet2mux[@]}" ; do
+        "  octet $octet"
+        scripts/source-routing teardown "$octet"
+    done
+}
+
+function test_data_plane {
+    test_withdraw_prefixes
     echo "Announcing prefixes"
-    for mux in "${!mux2octet[@]}" ; do
-        local octet=${mux2octet[$mux]}
+    for octet in "${!test_octet2mux[@]}" ; do
+        local mux=${test_octet2mux[$octet]}
         local prefix=184.164.$octet.0/24
         local params=${announce_params[$mux]:-}
         params=($params)
@@ -117,17 +96,14 @@ function announce_prefixes {
                 &> /dev/null
         # "$CDIR/peering" bgp adv "$mux"
     done
-    echo "  Waiting $CONVERGENCE_DELAY_SEC for BGP convergence"
-    sleep "$CONVERGENCE_DELAY_SEC"
-}
-
-function run_data_plane_test {
-    for mux in "${!mux2octet[@]}" ; do
-        devid=${mux2id[$mux]}
-        octet=${mux2octet[$mux]}
-        ip=184.164.$octet.$((128 + devid + 1))
+    echo "  Waiting $CONVERGENCE_TIME for BGP convergence"
+    sleep "$CONVERGENCE_TIME"
+    for octet in "${!test_octet2mux[@]}" ; do
+        local mux=${test_octet2mux[$octet]}
+        local ip=184.164.$octet.$((128 + 2))
         echo "================================================================="
-        echo "Container for $mux on br$octet using $ip"
+        echo "Octet $octet egressing through $mux on br$octet using $ip"
+        scripts/source-routing setup "$octet" "$mux"
         # docker run --network "br$octet" --ip "$ip" -it --rm \
         #         busybox ip addr show dev eth0
         # docker run --network "br$octet" --ip "$ip" -it --rm \
@@ -150,12 +126,19 @@ function run_data_plane_test {
 # network.
 
 # create_docker_bridges
-# teardown_bgp_sessions
 # establish_bgp_sessions
-# setup_source_routing
-# announce_prefixes
-run_data_plane_test
-# withdraw_prefixes
+
+declare -ga test_octet2mux
+test_octet2mux=(
+    [224]=neu01
+    [225]=amsterdam01
+    [246]=seattle01
+    [254]=utah01
+)
+test_data_plane
+
+# test_withdraw_prefixes
+# test_teardown_source_routing
+
 # teardown_bgp_sessions
-# teardown_source_routing
 # teardown_docker_bridges

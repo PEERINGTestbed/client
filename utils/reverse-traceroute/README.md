@@ -18,7 +18,7 @@ RAM. This needs to run before source routing configuration below as we
 want the OpenVPN tunnels established.
 
 Note that if there are stray OpenVPN daemon instances on the server,
-they may prevent correct management of the tunnel devices. Considering
+they may prevent correct management of the tunnel devices. Consider
 killing all existing OpenVPN instances before establishing the BGP
 sessions.
 
@@ -26,24 +26,29 @@ sessions.
 
 We also need to source-route packets from the Reverse Traceroute
 container to use PEERING as an upstream. We create a specific routing
-table for each mux (the table number is given by `50` plus the mux
-`id`), and add a default route pointing to the mux's IP address on the
-OpenVPN tunnel.  For example, `uw01` has `id` 10, so uses `tap10` as the
-OpenVPN tunnel, `100.(64+10).128.1` on its end of the OpenVPN tunnel,
-and table `60`. Packets are routed to a mux's specific routing table
-according to the source IP address of the Docker container. We configure
-this in the `setup_source_routing` function.
+table for each prefix. The table number is given by `-200` plus the
+third octet of the prefix; this assumes that we are using a prefix in
+the 184.164.224.0/19 range. We add a default route pointing the prefix
+to a specific mux. The default route uses the mux's IP address on the
+OpenVPN tunnel as the gateway.  For example, `uw01` has `id` 10, so uses
+`tap10` as the OpenVPN tunnel, `100.(64+10).128.1` on its end of the
+OpenVPN tunnel, and table `60`.  Packets are routed to a prefix's
+specific routing table according to the source IP address of the Docker
+container. We configure this using the `scripts/source-routing` script.
 
 ## Make announcements
 
 Announce a test prefix from PEERING and wait some time for route
-convergence to finish. The `announce_prefixes` calls PEERING scripts to
-achieve this.
+convergence to finish. We call PEERING scripts to achieve this.
+
+Note that announcements should match source routing: we recommend the
+egress mux used for a given prefix is also announcing the prefix to the
+Internet to avoid reverse path filtering.
 
 ## Test data plane
 
 Test data plane connectivity by issuing pings from within containers
-using the Docker bridges. Function `run_data_plane_test` implements
+using the Docker bridges. The `test_data_plane` function implements
 basic tests. Check that the IP address is configured correctly inside
 the container, that there is a default route, and that 8.8.8.8 is
 reachable. It is also a good idea to run `tcpdump` to check if packets
