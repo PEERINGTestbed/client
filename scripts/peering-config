@@ -1,4 +1,7 @@
-export peeringdir=$(cd "$(dirname "$(readlink -f "${BASH_SOURCE[0]}")")/.."; pwd -P)
+# shellcheck shell=bash
+
+peeringdir=$(cd "$(dirname "$(readlink -f "${BASH_SOURCE[0]}")")/.." && pwd -P)
+export peeringdir
 export varrun="$peeringdir/var"
 
 export bird_exec="bird"
