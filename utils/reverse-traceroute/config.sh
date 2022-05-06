@@ -1,1 +1,1 @@
-config-prod.sh
+config-test.sh

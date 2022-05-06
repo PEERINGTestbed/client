@@ -1,1 +1,1 @@
-config-prod.py
+config-test.py
