@@ -11,7 +11,7 @@ import jsonschema
 
 class AnnouncementController:
     def __init__(self, bird_cfg_dir, bird_sock, schema_fn):
-        with open(schema_fn) as fd:
+        with open(schema_fn, encoding="utf8") as fd:
             self.schema = json.load(fd)
         self.bird_cfg_dir = str(bird_cfg_dir)
         self.bird_sock = str(bird_sock)
@@ -24,7 +24,8 @@ class AnnouncementController:
         return env.get_template('export_mux_pfx.jinja2')
 
     def __config_file(self, prefix, mux):
-        fn = 'export_%s_%s.conf' % (mux, prefix.replace('/', '-'))
+        pfxfstr = prefix.replace('/', '-')
+        fn = f'export_{mux}_{pfxfstr}.conf'
         return os.path.join(self.bird_cfg_dir, 'prefix-filters', fn)
 
     def __create_routes(self):
@@ -32,8 +33,8 @@ class AnnouncementController:
         os.makedirs(path, exist_ok=True)
         for pfx in self.schema['definitions']['allocatedPrefix']['enum']:
             fpath = os.path.join(path, pfx.replace('/', '-'))
-            fd = open(fpath, 'w')
-            fd.write('route %s unreachable;\n' % pfx)
+            fd = open(fpath, 'w', encoding="utf8")
+            fd.write(f'route {pfx} unreachable;\n')
             fd.close()
 
     def validate(self, announcement):
@@ -60,11 +61,11 @@ class AnnouncementController:
 
     def announce(self, prefix, spec):
         for mux in spec['muxes']:
-            with open(self.__config_file(prefix, mux), 'w') as fd:
+            with open(self.__config_file(prefix, mux), 'w', encoding="utf8") as fd:
                 fd.write(self.config_template.render(prefix=prefix, spec=spec))
 
     def reload_config(self):
-        cmd = 'birdc -s %s' % self.bird_sock
+        cmd = f"birdc -s {self.bird_sock}"
         proc = subprocess.Popen(cmd.split(),
                                 stdin=subprocess.PIPE,
                                 stdout=subprocess.DEVNULL,
@@ -73,7 +74,7 @@ class AnnouncementController:
 
 
 def main():
-    with open(sys.argv[1], 'r') as announcement_json_fd:
+    with open(sys.argv[1], 'r', encoding="utf8") as announcement_json_fd:
         announcement = json.load(announcement_json_fd)
     bird_cfg_dir = 'configs/bird'
     bird_sock = 'var/bird.ctl'
