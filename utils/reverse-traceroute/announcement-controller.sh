@@ -5,7 +5,7 @@ set -x
 progdir=$(cd "$(dirname "$(readlink -f "$0")")" && pwd -P)
 export progdir
 
-mode="test"
+mode="prod"
 unlink config.sh
 unlink config.py
 ln -s config-$mode.sh config.sh
@@ -91,9 +91,9 @@ for mux in "${!mux2id[@]}" ; do
 
     take-snapshot "$outdir/pre-run-revtrs" 0
     jc-exp/compute-srcdsts.sh "$outdir/srcdsts.txt" "$mux"
-    scp "$outdir/srcdsts.txt" walter:
-    su $USER -c "ssh walter ./launch-revtrs.sh srcdsts.txt $label"
-    # launch-revtrs blocks until RevTrs finish. we block an extra while
+    su $USER -c "scp $outdir/srcdsts.txt walter:"
+    su $USER -c "ssh walter ./launch-revtrs.sh /home/cunha/srcdsts.txt $label"
+    # launch-revtrs blocks until RevTrs finish.  we block an extra while
     # just in case.  in a previous iteration, launch-revtrs returned when it
     # dispatched the last batch, so we had to wait longer.
     sleep $REVTR_WAIT_TIME
