@@ -46,7 +46,7 @@ sleep $CONVERGENCE_DELAY_SEC
 ip route flush table $table || true
 ip rule del pref $IP_RULE_PREF || true
 ip addr add $DOT1 dev lo || true
-ip rule add from $DOT1 lookup 151 prio 151 || true
+ip rule add from $DOT1 lookup 20000 prio 20000 || true
 
 mkdir -p $BASEDIR
 for mux in "${!mux2dev[@]}" ; do

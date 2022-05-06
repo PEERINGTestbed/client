@@ -11,7 +11,7 @@ usage: peering appns -p prefix [-n NSNAME] [-u UPSTREAM] [-d]
 -n NSNAME       Name of the created namespace, should contain only [0-9a-z].
                 Defaults to peeringapp; interfaces have h and ns suffixes.
 -u UPSTREAM     Route egress traffic through specific upstream.  By default
-                traffic is routed through table 151 populated by BIRD.
+                traffic is routed through table 20000 populated by BIRD.
 -d              Remove namespace, interfaces, and routes
 
 EOF

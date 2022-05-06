@@ -196,14 +196,14 @@ usage: peering appns create -p prefix [-n NSNAME] [-u UPSTREAM] [-d]
                 [0-9a-z]. Defaults to peeringapp; interfaces have h
                 and ns suffixes.
 -u UPSTREAM     Route egress traffic through specific upstream.  By
-                default traffic is routed through table 151 populated by BIRD.
+                default traffic is routed through table 20000 populated by BIRD.
 -d              Remove namespace, interfaces, and routes
 ```
 
 Each namespace operates on a PEERING prefix (either v4 or v6).  By
 default, the namespace is called `peeringapp`. Users that need multiple
 namespace will need to change the name to avoid conflicts.  By default,
-the namespace routes egress traffic using table 151, which is populated
+the namespace routes egress traffic using table 20000, which is populated
 by BIRD.  The `-u` option allows the user to choose a specific upstream
 to route out of.  The `-d` flag removes a given namespace; `-d` removes
 the namespace pointed to by `-n` and routes created through upstrema

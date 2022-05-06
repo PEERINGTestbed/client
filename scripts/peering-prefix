@@ -135,9 +135,9 @@ withdraw    Withdraw prefix to one or all muxes.
 -R          Do not configure the data plane.  We setup a working data
             plane by adding the .1 address of announced prefixes to the
             loopback interface and setting outgoing packets to use
-            table 151, which is populated by BIRD.  This flag skips
+            table 20000, which is populated by BIRD.  This flag skips
             configuration of the data plane, and is particularly useful
-            if using the appns submodule to avoid conflicting routing
+            if using the app submodule to avoid conflicting routing
             rules.
 
 prefix      Choose the prefix to operate on.  Make sure the prefix
