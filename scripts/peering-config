@@ -40,6 +40,29 @@ load_mux2dev () {
     done < "$mux2dev_db"
 }
 
+load_pfx2id () {
+    if [ ! -e "$prefix_db" ] ; then
+        echo "error: $prefix_db not found."
+        echo "list the IPv4 prefixes you will announce in $prefix_db."
+        die "create an empty file if you will not announce IPv4 prefixes."
+    fi
+
+    if [ ! -e "$prefix6_db" ] ; then
+        echo "error: $prefix6_db not found."
+        echo "list the IPv6 prefixes you will announce in $prefix6_db."
+        die "create an empty file if you will not announce IPv6 prefixes."
+    fi
+
+    declare -gA pfx2id
+    export pfx2id
+    while read -r pfx ; do
+        pfx2id[$pfx]=v4
+    done < "$prefix_db"
+    while read -r pfx ; do
+        pfx2id[$pfx]=v6
+    done < "$prefix6_db"
+}
+
 term () {
     echo "$1"
     exit 0
@@ -53,6 +76,7 @@ die () {
 mkdir -p "$varrun"
 
 export -f load_mux2dev
+export -f load_pfx2id
 export -f term
 export -f die
 

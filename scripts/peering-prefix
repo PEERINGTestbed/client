@@ -156,7 +156,7 @@ OPTIND=2  # {{{
 while getopts "m:p:P:o:c:C:l:R" opt "$@" ; do
 case $opt in
 m)  mux=$OPTARG ;;
-p)  poison_list+=($OPTARG) ;;
+p)  poison_list+=("$OPTARG") ;;
 P)  prepend=$OPTARG ;;
 o)  origin=$OPTARG ;;
 c|C)
@@ -171,13 +171,13 @@ c|C)
     if [[ $ctoken -gt 65535 || $ctoken -lt 0 ]] ; then
         die "error [-c ASN:COMM accepts only 16-bit numbers]"
     fi
-    communities+=($OPTARG)
+    communities+=("$OPTARG")
     ;;
 l)
     if ! [[ $OPTARG =~ [0-9]{1,9},[0-9]{1,9},[0-9]{1,9} ]] ; then
         die "error [-l requires a string that matches '[0-9]{1,9},[0-9]{1,9},[0-9]{1,9}']"
     fi
-    large_communities+=($OPTARG)
+    large_communities+=("$OPTARG")
     ;;
 R)
     config_dataplane=0
@@ -186,13 +186,10 @@ R)
 esac
 done  # }}}
 
+load_mux2dev
+load_pfx2id
 
-declare -A mux2dev
-while read -r fmux fdev ; do
-    mux2dev[$fmux]=$fdev
-done < "$mux2dev_db"
-
-if [ "$mux" != all ] && [ "${mux2dev[$mux]:-unset}" = unset ] ; then
+if [ "$mux" != all ] && [ "${mux2dev[$mux]:-unknown}" = unknown ] ; then
     die "error [mux unknown: $mux]"
 fi
 
@@ -207,29 +204,9 @@ if [[ $prepend -lt 0 || $prepend -gt 4 ]] ; then
     die "error [can prepend only 1, 2, 3, or 4 times]"
 fi
 
-if [ ! -e "$prefix_db" ] ; then
-    echo "error: $prefix_db not found."
-    echo "list the IPv4 prefixes you will announce in $prefix_db."
-    die "create an empty file if you will not announce IPv4 prefixes."
-fi
-
-if [ ! -e "$prefix6_db" ] ; then
-    echo "error: $prefix6_db not found."
-    echo "list the IPv6 prefixes you will announce in $prefix6_db."
-    die "create an empty file if you will not announce IPv6 prefixes."
-fi
-
-declare -A pfx2id
-while read -r pfx ; do
-    pfx2id[$pfx]=v4
-done < "$prefix_db"
-while read -r pfx ; do
-    pfx2id[$pfx]=v6
-done < "$prefix6_db"
-
-prefix=${!OPTIND:-unset}
-pfxid=${pfx2id[$prefix]:-unset}
-if [[ $pfxid = unset ]] ; then
+prefix=${!OPTIND:-unknown}
+pfxid=${pfx2id[$prefix]:-unknown}
+if [[ $pfxid == unknown ]] ; then
     echo "list of configured prefixes:"
     cat "$prefix_db" "$prefix6_db"
     die "error [invalid prefix: $prefix]"

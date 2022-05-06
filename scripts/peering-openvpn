@@ -41,10 +41,7 @@ if ! which socat > /dev/null ; then die "PEERING requires the socat tool" ; fi
 test $# -ge 1 || usage
 test $EUID -eq 0 || die "OpenVPN requires root access."
 
-declare -A mux2dev
-while read -r mux dev ; do
-    mux2dev[$mux]=$dev
-done < "$mux2dev_db"
+load_mux2dev
 
 case $1 in
 up)
