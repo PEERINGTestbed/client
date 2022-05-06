@@ -203,8 +203,8 @@ if [[ ${poison_list[*]:-undef} != undef ]] ; then
 fi
 check_valid_asn "$origin"
 
-if [[ $prepend -lt 0 || $prepend -gt 3 ]] ; then
-    die "error [can prepend only 1, 2, or 3 times]"
+if [[ $prepend -lt 0 || $prepend -gt 4 ]] ; then
+    die "error [can prepend only 1, 2, 3, or 4 times]"
 fi
 
 if [ ! -e "$prefix_db" ] ; then
