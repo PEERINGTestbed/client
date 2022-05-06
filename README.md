@@ -87,7 +87,7 @@ We support five operations to interact with BIRD:
 
 ## Controlling prefix announcements
 
-```
+```{text}
 usage: peering prefix announce|withdraw [-m mux]
                                         [-p poison | [-P prepend] [-o origin]]
                                         [-c id1] ... [-c idN]
@@ -135,7 +135,7 @@ named `container.txt`.  This information is necessary to compute
 prefixes and install routes, you can find it on the PEERING website
 dashboard.
 
-```
+```{bash}
 echo ID > container.txt
 ```
 
@@ -150,7 +150,7 @@ echo ID > container.txt
 Bringing up a proxy prints relevant information to access and interact
 with that mux's container.
 
-```
+```{text}
 TinyProxy addresses for isi01 (tap2, 2)
   local address: 100.66.128.6:8802
   subnet: 100.125.16.8/30
@@ -163,14 +163,14 @@ updating (add) 2804:269c:ff03:2:2::/80 via 2804:269c:ff00:2:1::1 dev tap2
 You can SSH into your container by using the *second host* in the `/30`
 subnet. In other words, SSH to the third address in the /30.  You should login as `root` using your private key:
 
-```
+```{bash}
 ssh -i ~/.ssh/peering_id_rsa root@100.125.16.10
 ```
 
 You can use the proxy *on the container* by setting the `http_proxy`
 environment variable to match TinyProxy's local address (above).
 
-```
+```{bash}
 export http_proxy=http://100.66.128.6:8802/
 apt update
 apt install lighttpd
@@ -185,10 +185,11 @@ next-hop field.
 
 ## Running an application behind PEERING
 
-The `appns` module configures a network namespace with a single interface, and routes the network namespace through PEERING OpenVPN
+The `appns` module configures a network namespace with a single
+interface, and routes the network namespace through PEERING OpenVPN
 tunnels.
 
-```
+```{text}
 usage: peering appns create -p prefix [-n NSNAME] [-u UPSTREAM] [-d]
 
 -p PREFIX       Prefix that will be used in the application
