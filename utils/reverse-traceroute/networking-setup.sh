@@ -78,7 +78,7 @@ function test_withdraw_prefixes {
 function test_teardown_source_routing {
     echo "Tearing down source routes"
     for octet in "${!test_octet2mux[@]}" ; do
-        "  octet $octet"
+        echo "  octet $octet"
         scripts/source-routing teardown "$octet"
     done
 }
@@ -135,7 +135,7 @@ test_octet2mux=(
     [246]=seattle01
     [254]=utah01
 )
-test_data_plane
+# test_data_plane
 
 # test_withdraw_prefixes
 # test_teardown_source_routing

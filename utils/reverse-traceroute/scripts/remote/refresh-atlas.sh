@@ -6,13 +6,11 @@ set -eux
 # firewalled. So to avoid tunnels we just SSH in and run this script.
 # APIHOST and APIPORT are then local.
 
-progdir=$(cd "$(dirname "$(readlink -f "$0")")"; pwd -P)
+progdir=$(cd "$(dirname "$(readlink -f "$0")")" && pwd -P)
 source "$progdir/config.sh"
 
-for mux in "${!mux2octet[@]}" ; do
-        octet=${mux2octet[$mux]}
-        muxid=${mux2id[$mux]}
-        v4addr="184.164.$octet.$(( 128 + muxid ))"
+for octet in "${octets[@]}" ; do
+        v4addr="184.164.$octet.$(( 128 + 1 ))"
         curl -X POST --insecure --silent --show-error \
                 -H "Revtr-Key: $APIKEY" \
                 -H "source:$v4addr" \

@@ -1,6 +1,5 @@
 #!/bin/bash
 set -eu
-set -x
 
 progdir=$(cd "$(dirname "$(readlink -f "$0")")"; pwd -P)
 source "$progdir/config.sh"
@@ -9,14 +8,14 @@ outdir=$1
 withroutes=$2
 mkdir -p "$outdir"
 
+echo "  Taking snapshot $(basename "$1")"
+
 docker ps > "$outdir/docker-ps.txt"
-./peering openvpn status > "$outdir/openvpn-status.txt"
+$CDIR/peering openvpn status > "$outdir/openvpn-status.txt"
 ip rule &> "$outdir/host-ip-rule.txt"
 
-for mux in "${!mux2octet[@]}" ; do
-    muxid=${mux2id[$mux]}
-    octet=${mux2octet[$mux]}
-    table=$((BASE_TABLE + muxid))
+for octet in "${octets[@]}" ; do
+    table=$((BASE_TABLE + octet))
     prefix="184.164.$octet.0/24"
     # v4addr=184.164.$octet.$((128 + muxid))
     # Add `--ip $v4addr` to Docker to set the IP address
@@ -29,10 +28,12 @@ for mux in "${!mux2octet[@]}" ; do
     # docker run --network "br$octet" -it --rm \
     #         busybox ip rule &> "$outdir/busybox-ip-rule-$mux.txt"
 
-    ./peering bgp adv "$mux" > "$outdir/bgp-adv-$mux.txt"
+    for mux in "${!mux2id[@]}" ; do
+        $CDIR/peering bgp adv "$mux" > "$outdir/bgp-adv-$mux.txt"
+    done
 
     if [[ $withroutes -eq 1 ]] ; then
-        ./utils/prefix-propagation/query-route-server.py \
+        $CDIR/utils/prefix-propagation/query-route-server.py \
                 --log "$outdir/att-routes-$octet.txt" "$prefix" \
                 &> "$outdir/att-routes-$octet.log"
     fi

@@ -76,6 +76,8 @@ performs this step.
 
 ```{bash}
 apt install bird openvpn socat
+systemctl stop openvpn bird bird6
+systemctl disable openvpn bird bird6
 pip3 install pexpect
 ```
 

@@ -4,13 +4,21 @@ set -eu
 progdir=$(cd "$(dirname "$(readlink -f "$0")")"; pwd -P)
 source "$progdir/config.sh"
 
+function check_ip_not_on_host {
+    local ip=$1
+    while read -r pfx ; do
+        if check-ip-in-subnet.py "$ip" "$pfx" ; then
+            echo "WARNING: IP $ip is connected to the loopback on the host"
+        fi
+    done < <(ip addr show dev lo | grep -oEe "inet6? [^ ]+" | cut -d " " -f 2)
+}
+
 function start_containers {
     echo "Starting revtrvp containers"
-    for mux in "${!mux2octet[@]}" ; do
-        local muxid=${mux2id[$mux]}
-        local octet=${mux2octet[$mux]}
-        local ip=184.164.$octet.$((128 + muxid))
-        local ctxname=$CTX_NAME_PREFIX-$mux
+    for octet in "${octets[@]}" ; do
+        local ip=184.164.$octet.$((128 + 1))
+        local ctxname=$CTX_NAME_PREFIX-$octet
+        check_ip_not_on_host "$ip"
         echo "  $ctxname on br$octet using $ip"
         docker run --name "$ctxname" --network="br$octet" --ip "$ip" \
                 --restart=unless-stopped --detach \
@@ -21,8 +29,8 @@ function start_containers {
 
 function stop_containers {
     echo "Stopping revtrvp containers"
-    for mux in "${!mux2octet[@]}" ; do
-        ctxname=$CTX_NAME_PREFIX-$mux
+    for octet in "${octets[@]}" ; do
+        ctxname=$CTX_NAME_PREFIX-$octet
         if docker ps | grep "$ctxname" &> /dev/null ; then
             echo "  $ctxname"
             docker stop "$ctxname" &> /dev/null
@@ -31,6 +39,12 @@ function stop_containers {
     done
 }
 
+die () {
+    echo "$1"
+    exit 1
+}
+
+if [[ $# -lt 1 ]] ; then die "usage: $0 start|stop|restart" ; fi
 case $1 in
 restart)
     stop_containers
