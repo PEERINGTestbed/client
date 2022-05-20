@@ -41,7 +41,7 @@ while getopts "i:p:bndu:h" OPT; do
 case $OPT in
 i)
     id=$(( OPTARG ))
-    [[ $id -lt 1 && $id -ge 1000 ]] || die "We require 0 < ID < 1000"
+    [[ $id -lt 1 && $id -ge 1000 ]] && die "We require 0 < ID < 1000"
     ;;
 p)
     prefix="$OPTARG"
@@ -99,8 +99,6 @@ else
     fprefix=$(echo "$prefix" | sed -e "s|.[0-9]*/[0-9-]*|.0/24|")
 fi
 
-[[ ${pfx2id[$fprefix]:-err} != err ]] || die "Prefix $fprefix not in DB"
-
 if ip addr | grep -Ee "inet6? $appip" &> /dev/null ; then
     echo "Application IP $appip is assigned to an interface on the host."
     echo "ARP resolution and routing will not work.  Consider using the -R"
@@ -108,10 +106,13 @@ if ip addr | grep -Ee "inet6? $appip" &> /dev/null ; then
     die "Aborting."
 fi
 
-echo "Prefix: $prefix ($fprefix)"
-echo "Application IP: $appip"
-echo "Application gateway: $hostip"
-echo "Delete: $delete"
+if [[ $delete -eq 1 ]] ; then
+    echo "Deleting application with ID $id"
+else
+    echo "Prefix: $prefix ($fprefix)"
+    echo "Application IP: $appip"
+    echo "Application gateway: $hostip"
+fi
 
 table=$(( appns_table_base + id ))
 
@@ -143,7 +144,7 @@ function delete_app_ns {
 }
 
 function create_app_docker {
-    if ! docker network inspect "$brname" &> /dev/null ; then
+    if docker network inspect "$brname" &> /dev/null ; then
         die "Docker network $brname already exists"
     fi
     echo "Creating Docker network $brname"
@@ -199,6 +200,7 @@ if [[ $nsname != invalid ]] ; then
         delete_app_ns
         teardown_source_routing
     else
+        [[ ${pfx2id[$fprefix]:-err} != err ]] || die "Prefix $fprefix not in DB"
         create_app_docker
         setup_source_routing
     fi
@@ -208,6 +210,7 @@ elif [[ $brname != invalid ]] ; then
         delete_app_docker
         teardown_source_routing
     else
+        [[ ${pfx2id[$fprefix]:-err} != err ]] || die "Prefix $fprefix not in DB"
         create_app_docker
         setup_source_routing
     fi
