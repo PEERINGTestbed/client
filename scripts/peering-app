@@ -1,0 +1,214 @@
+#!/bin/bash
+set -eu
+
+usage () {
+    cat <<-EOF
+usage: peering app -i ID {-n | -b} {-d | -p PREFIX [-u UPSTREAM]}
+
+-i ID           An integer identifier between 1 and 1000 to identify this
+                app.  You can pick any number, but need to use it consistently.
+
+Application class (exactly one of these is required):
+-n              Create a namespace where applications cab ne created.  The
+                namespace will be named papp\$ID.
+-b              Create a Docker bridge where Docker applications can be
+                attached.  The bridge will be named pbr\$ID.
+
+Operation mode (either -p PREFIX or -d is required):
+-d              Remove namespace, interfaces, and routes for the application.
+-p PREFIX       Prefix to be used in the application.  The first address will
+                be assigned on the application's interface, and the last address
+                will be assigned to the host interface and used as a gateway.
+-u MUX          Route egress traffic through specific upstream.  By default
+                traffic is routed through table 20000 populated by BIRD.
+
+EOF
+    exit 0
+}
+
+id=0
+prefix=invalid
+nsname=invalid
+brname=invalid
+devname=invalid
+upstream=default
+delete=0
+
+load_mux2dev
+load_pfx2id
+
+while getopts "i:p:bndu:h" OPT; do
+case $OPT in
+i)
+    id=$(( OPTARG ))
+    [[ $id -lt 1 && $id -ge 1000 ]] || die "We require 0 < ID < 1000"
+    ;;
+p)
+    prefix="$OPTARG"
+    ;;
+n)
+    [[ $brname == invalid ]] || die "Cannot have -b and -n together"
+    [[ $id -ne 0 ]] || die "Please set -i before -n or -b"
+    nsname=papp$id
+    devname=papp$id
+    ;;
+b)
+    [[ $nsname == invalid ]] || die "Cannot have -b and -n together"
+    [[ $id -ne 0 ]] || die "Please set -i before -n or -b"
+    brname=pbr$id
+    devname=pbr$id
+    ;;
+u)
+    upstream="$OPTARG"
+    [[ ${mux2dev[$upstream]:-err} != err ]] || die "Unknown mux $upstream"
+    ;;
+d)
+    delete=1
+    ;;
+h|*)
+    usage
+    exit 0
+    ;;
+esac
+done
+shift $(( OPTIND - 1 ))
+OPTIND=1
+
+if [[ $id -eq 0 ]] ; then
+    usage
+fi
+
+if [[ $delete -eq 0 && $prefix == invalid ]] ; then
+    die "Need at least one of -p or -d"
+fi
+
+if [[ $devname == invalid ]] ; then
+    die "Need at least one of -b or -n"
+fi
+
+minus6="-4"
+pfxlen=${prefix##*/}
+if [[ $prefix =~ : ]] ; then
+    appip=$(ipcalc -n -b "$prefix" | grep HostMin | awk '{print $2;}')
+    hostip=$(ipcalc -n -b "$prefix" | grep HostMax | awk '{print $2;}')
+    fprefix=$(echo "$prefix" | sed -e "s|::[0-9a-f]*/[0-9]*|::\/48|")
+    minus6="-6"
+else
+    appip=$(ipcalc -n -b "$prefix" | grep HostMin | awk '{print $2;}')
+    hostip=$(ipcalc -n -b "$prefix" | grep HostMax | awk '{print $2;}')
+    fprefix=$(echo "$prefix" | sed -e "s|.[0-9]*/[0-9-]*|.0/24|")
+fi
+
+[[ ${pfx2id[$fprefix]:-err} != err ]] || die "Prefix $fprefix not in DB"
+
+if ip addr | grep -Ee "inet6? $appip" &> /dev/null ; then
+    echo "Application IP $appip is assigned to an interface on the host."
+    echo "ARP resolution and routing will not work.  Consider using the -R"
+    echo "parameter to the [peering prefix] command."
+    die "Aborting."
+fi
+
+echo "Prefix: $prefix ($fprefix)"
+echo "Application IP: $appip"
+echo "Application gateway: $hostip"
+echo "Delete: $delete"
+
+table=$(( appns_table_base + id ))
+
+function create_app_ns {
+    ip netns exec $nsname true &> /dev/null && die "NS $nsname already exists"
+
+    echo "Creating namespace $nsname"
+    ip netns add $nsname
+    echo "Configuring ${nsname}h on host"
+    ip link add dev ${nsname}h type veth peer name ${nsname}ns
+    ip addr add "$hostip/$pfxlen" dev ${nsname}h
+    echo "Configuring eth0 on namespace $nsname"
+    ip link set dev ${nsname}ns netns ${nsname}
+    ip netns exec $nsname ip link set dev ${nsname}ns name eth0
+    ip netns exec $nsname ip addr add "$appip/$pfxlen" dev eth0
+    ip netns exec $nsname ip route add default via "${hostip%%/*}"
+
+    ip link set dev ${nsname}h up
+    ip netns exec $nsname ip link set dev eth0 up
+}
+
+function delete_app_ns {
+    ip netns exec "$nsname" true &> /dev/null || die "NS $nsname does not exist"
+
+    echo "Removing namespace $nsname"
+    echo "Removing link ${nsname}h"
+    ip netns del "$nsname"
+    ip link del "${nsname}h"
+}
+
+function create_app_docker {
+    if ! docker network inspect "$brname" &> /dev/null ; then
+        die "Docker network $brname already exists"
+    fi
+    echo "Creating Docker network $brname"
+    docker network create --driver bridge \
+            --opt "com.docker.network.bridge.enable_ip_masquerade=false" \
+            --opt "com.docker.network.bridge.name=$brname" \
+            --subnet "$prefix" \
+            --ip-range "$prefix" \
+            --gateway "$hostip" \
+            "$brname" &> /dev/null
+}
+
+function delete_app_docker {
+    if ! docker network inspect "$brname" &> /dev/null ; then
+        die "Docker network $brname not found"
+    fi
+    echo "Removing Docker network $brname"
+    docker network rm "$brname" &> /dev/null
+}
+
+function setup_source_routing {
+    if [[ $upstream == default ]] ; then
+        ip rule add from "$appip" table "$kernel_table" pref $table
+        ip rule add iif $devname table "$kernel_table" pref $table
+    else
+        local tapdev=${mux2dev[$upstream]}
+        local devid=${tapdev##tap}
+        local gwip
+        if [[ $minus6 == "-6" ]] ; then
+            gwip=2804:269c:ff00:$(printf "%x" "$devid"):1::1
+        else
+            gwip=100.$((64 + devid)).128.1
+        fi
+        ip $minus6 route add default via $gwip dev "$tapdev" table $table
+        ip $minus6 rule add from "$appip" table $table pref $table
+        ip $minus6 rule add iif $devname table $table pref $table
+    fi
+}
+
+function teardown_source_routing {
+    local nrules
+    nrules=$(ip rule show pref $table | wc -l)
+    echo "Flushing table $table and $nrules rules"
+    ip $minus6 route flush table $table &> /dev/null || true
+    while [[ $(( nrules-- )) -gt 0 ]] ; do
+        ip $minus6 rule del pref $table
+    done
+}
+
+if [[ $nsname != invalid ]] ; then
+    echo "Mode: namespace"
+    if [[ $delete -eq 1 ]] ; then
+        delete_app_ns
+        teardown_source_routing
+    else
+        create_app_docker
+        setup_source_routing
+    fi
+elif [[ $brname != invalid ]] ; then
+    echo "Mode: bridge"
+    if [[ $delete -eq 1 ]] ; then
+        delete_app_docker
+        teardown_source_routing
+    else
+        create_app_docker
+        setup_source_routing
+    fi
+fi

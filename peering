@@ -7,7 +7,7 @@ source "$progdir/scripts/peering-config"
 
 usage () {
     cat <<-EOF
-usage: $0 openvpn|bgp|bgp6|prefix|proxy|appns
+usage: $0 openvpn|bgp|bgp6|prefix|proxy|app
 
 openvpn     Control OpenVPN tunnels
 
@@ -19,7 +19,7 @@ prefix      Control prefix announcements
 
 proxy       Control proxy for containers
 
-appns       Create and delete namespaces for applications
+app         Create and delete namespaces/bridges for applications
 
 EOF
     exit 0
@@ -48,9 +48,9 @@ proxy)
     shift
     "$progdir/scripts/peering-proxy" "$@"
     ;;
-appns)
+app)
     shift
-    "$progdir/scripts/peering-appns" "$@"
+    "$progdir/scripts/peering-app" "$@"
     ;;
 *)
     usage
