@@ -1,37 +1,51 @@
 #!/bin/bash
 set -u
+set -x
 
 progdir=$(cd "$(dirname "$(readlink -f "$0")")" && pwd -P)
 export progdir
-source "$progdir/config.sh"
 
+export OPENVPN_DELAY_SEC=10
+export CDIR=/home/cunha/git/peering/client
+export CONVERGENCE_TIME=180
 
-declare -gA announce_params
-announce_params=( )
+declare -gA mux2id
+mux2id=([amsterdam01]=5
+        [clemson01]=16
+        [gatech01]=6
+        [grnet01]=9
+        [isi01]=2
+        [neu01]=14
+        [saopaulo01]=19
+        [seattle01]=1
+        [ufmg01]=7
+        [ufms01]=18
+        [utah01]=17
+        [uw01]=10
+        [wisc01]=11)
 
+declare -gA prefix2mux
+prefix2mux=(
+    [184.164.224.0/24]=neu01
+)
+    # [184.164.225.0/24]=amsterdam01
+    # [184.164.246.0/24]=seattle01
+    # [184.164.254.0/24]=utah01
 
-function create_docker_bridges {
-    teardown_docker_bridges
-    echo "Creating Docker bridges"
-    for octet in "${octets[@]}" ; do
-        echo "  br$octet 184.164.$octet.128/25"
-        docker network create --driver bridge \
-                --opt "com.docker.network.bridge.enable_ip_masquerade=false" \
-                --opt "com.docker.network.bridge.name=br$octet" \
-                --subnet "184.164.$octet.128/25" \
-                --ip-range "184.164.$octet.128/25" \
-                --gateway "184.164.$octet.254" \
-                "br$octet" &> /dev/null
+function setup_docker_bridges {
+    local idx=1
+    for prefix in "${!prefix2mux[@]}" ; do
+        local mux=${prefix2mux[$prefix]}
+        "$CDIR/peering" app -i $idx -b -p "$prefix" -u "$mux"
+        idx=$(( idx + 1 ))
     done
 }
 
 function teardown_docker_bridges {
-    echo "Removing Docker bridges"
-    for octet in "${octets[@]}" ; do
-        if docker network inspect "br$octet" &> /dev/null ; then
-            echo "  br$octet"
-            docker network rm "br$octet" &> /dev/null
-        fi
+    local idx=1
+    for _prefix in "${!prefix2mux[@]}" ; do
+        "$CDIR/peering" app -i $idx -b -d
+        idx=$(( idx + 1 ))
     done
 }
 
@@ -66,79 +80,58 @@ function teardown_bgp_sessions {
     fi
 }
 
-function test_withdraw_prefixes {
+function announce_prefixes {
+    test_withdraw_prefixes
+    echo "Announcing prefixes"
+    for prefix in "${!prefix2mux[@]}" ; do
+        local mux=${prefix2mux[$prefix]}
+        echo "  announce -R -m $mux $prefix"
+        "$CDIR/peering" prefix announce -R -m "$mux" "$prefix" &> /dev/null
+        # "$CDIR/peering" bgp adv "$mux"
+    done
+    echo "  Waiting $CONVERGENCE_TIME for BGP convergence"
+    sleep "$CONVERGENCE_TIME"
+}
+
+function withdraw_prefixes {
     echo "Withdrawing prefixes"
-    for octet in "${!test_octet2mux[@]}" ; do
-        local prefix=184.164.$octet.0/24
+    for prefix in "${!prefix2mux[@]}" ; do
         echo "  withdraw $prefix"
         "$CDIR/peering" prefix withdraw "$prefix" &> /dev/null
     done
 }
 
-function test_teardown_source_routing {
-    echo "Tearing down source routes"
-    for octet in "${!test_octet2mux[@]}" ; do
-        echo "  octet $octet"
-        scripts/source-routing teardown "$octet"
-    done
-}
-
 function test_data_plane {
-    test_withdraw_prefixes
-    echo "Announcing prefixes"
-    for octet in "${!test_octet2mux[@]}" ; do
-        local mux=${test_octet2mux[$octet]}
-        local prefix=184.164.$octet.0/24
-        local params=${announce_params[$mux]:-}
-        params=($params)
-        echo "  announce -R -m $mux ${params[*]} $prefix"
-        "$CDIR/peering" prefix announce -R -m "$mux" "${params[@]}" "$prefix" \
-                &> /dev/null
-        # "$CDIR/peering" bgp adv "$mux"
-    done
-    echo "  Waiting $CONVERGENCE_TIME for BGP convergence"
-    sleep "$CONVERGENCE_TIME"
-    for octet in "${!test_octet2mux[@]}" ; do
-        local mux=${test_octet2mux[$octet]}
-        local ip=184.164.$octet.$((128 + 2))
+    local idx=1
+    for prefix in "${!prefix2mux[@]}" ; do
+        local mux=${prefix2mux[$prefix]}
+        local ip=${prefix%%.0/24}.130
         echo "================================================================="
-        echo "Octet $octet egressing through $mux on br$octet using $ip"
-        scripts/source-routing setup "$octet" "$mux"
+        echo "Prefix $prefix egressing through $mux on br$idx using $ip"
         # docker run --network "br$octet" --ip "$ip" -it --rm \
         #         busybox ip addr show dev eth0
         # docker run --network "br$octet" --ip "$ip" -it --rm \
         #         busybox ip route
         # docker run --network "br$octet" --ip "$ip" -it --rm busybox \
         #         ping -q -c 4 "184.164.$octet.254"
-        docker run --network "br$octet" --ip "$ip" -it --rm busybox \
+        docker run --network "pbr$idx" --ip "$ip" -it --rm busybox \
                 ping -q -c 4 8.8.8.8
         # docker run --network "br$octet" --ip "$ip" -it --rm \
         #         busybox traceroute 8.8.8.8
+        idx=$(( idx + 1 ))
     done
 }
 
-# The following is the expected order in which these operations need to
-# be performed to setup the networking for the revtrvp containers to
-# run. Comment and uncomment as needed. As for deployment, setting up
-# the network (i.e., calling the functions in this file) only needs to
-# run once; after the network is setup, PEERING announcements can change
-# and revtrvp containers restarted without the need reconfigure the
-# network.
+# The following can be run to test the control and data planes.  The
+# operations should be run in the order presented.  Comment and
+# uncomment as needed during test and debugging.
 
-# create_docker_bridges
 # establish_bgp_sessions
+# setup_docker_bridges
 
-declare -ga test_octet2mux
-test_octet2mux=(
-    [224]=neu01
-    [225]=amsterdam01
-    [246]=seattle01
-    [254]=utah01
-)
+# announce_prefixes
 # test_data_plane
+# withdraw_prefixes
 
-# test_withdraw_prefixes
-# test_teardown_source_routing
-
-# teardown_bgp_sessions
 # teardown_docker_bridges
+# teardown_bgp_sessions
