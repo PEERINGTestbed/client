@@ -1,8 +1,8 @@
 #!/bin/bash
 set -eu
 
-program=$(basename "$0")
-export progdir=$(cd "$(dirname "$0")"; pwd -P)
+progdir=$(cd "$(dirname "$0")" && pwd -P)
+export progdir
 source "$progdir/scripts/peering-config"
 
 usage () {
