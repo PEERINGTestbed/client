@@ -68,7 +68,6 @@ do_announce () {  #{{{
     echo "route $prefix unreachable;" > "$filterfn"
 }  #}}}
 
-
 usage () {  # {{{
     cat <<-EOF
 Usage: peering prefix announce|withdraw [-m mux]
