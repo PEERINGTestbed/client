@@ -91,6 +91,8 @@ We support five operations to interact with BIRD:
 usage: peering prefix announce|withdraw [-m mux]
                                         [-p poison | [-P prepend] [-o origin]]
                                         [-c id1] ... [-c idN]
+                                        [-R]
+                                        [-M]
                                         prefix
 ```
 
@@ -118,6 +120,14 @@ or withdrawing prefixes, we support the following options:
   sending the announcement through the peer identified by `id` only.
   Can be used multiple times to send announcements through multiple
   peers.  Click [here][2] for a list of PEERING peers.
+
+* `[-R]`: This flag skips configuration of the data plane, and is
+  particularly useful if using the app submodule to avoid conflicting
+  routing rules.
+
+* `[-M]`: Change the announcements nexthop configuring mux to
+  redirect packets into the user's container. Must be used
+  with -m and a mux running a container.
 
   [2]: https://peering.ee.columbia.edu/peers/
 

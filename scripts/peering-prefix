@@ -13,7 +13,7 @@ prefix=invalid
 config_dataplane=1
 communities=()
 large_communities=()
-
+lxc_dataplane=0
 
 check_valid_asn () {  # {{{
     local asn=$1
@@ -26,6 +26,15 @@ check_valid_asn () {  # {{{
     fi
 }  # }}}
 
+client_nexthop () {
+    local mux=$1
+    local dev=${mux2dev[$mux]}
+    local devid=${dev##tap}
+    local mux_offset="$((devid<<3))"
+    local ctxid=$(cat "$ctxid_db")
+    local cont_offset="$((ctxid*4+2))"
+    echo "100.125.$mux_offset.$cont_offset"
+}
 
 do_announce () {  #{{{
     local mux=$1
@@ -62,6 +71,9 @@ do_announce () {  #{{{
             echo "    bgp_large_community.add(($comm));" >> "$filterfn"
         done
     fi
+    if [[ $lxc_dataplane -eq 1 ]] ; then
+        echo "    bgp_next_hop=$(client_nexthop "$mux");" >> "$filterfn"
+    fi
     echo "    accept;" >> "$filterfn"
     echo "}" >> "$filterfn"
     filterfn=$bird_routes/$prefixfn
@@ -76,6 +88,7 @@ Usage: peering prefix announce|withdraw [-m mux]
                                         [-c ASN,COMM] ... [-c ASN,COMM]
                                         [-l ASN,X,Y] ... [-l ASN,X,Y]
                                         [-R]
+                                        [-M]
                                         prefix
 
 Options can be specified in any order, but announce|withdraw must
@@ -139,6 +152,10 @@ withdraw    Withdraw prefix to one or all muxes.
             if using the app submodule to avoid conflicting routing
             rules.
 
+-M          Change the announcements nexthop configuring mux to
+            redirect packets into the user's container. Must be used
+            with -m and a mux running a container.
+
 prefix      Choose the prefix to operate on.  Make sure the prefix
             has been allocated to you, or your announcement will be
             filtered by PEERING muxes.
@@ -152,7 +169,7 @@ test $# -ge 2 || usage
 test $EUID -eq 0 || die "The BIRD BGP daemon requires root access."
 
 OPTIND=2  # {{{
-while getopts "m:p:P:o:c:C:l:R" opt "$@" ; do
+while getopts "m:p:P:o:c:C:l:RM" opt "$@" ; do
 case $opt in
 m)  mux=$OPTARG ;;
 p)  poison_list+=("$OPTARG") ;;
@@ -180,6 +197,12 @@ l)
     ;;
 R)
     config_dataplane=0
+    ;;
+M)
+    if [[ ! -e "$ctxid_db" ]] ; then
+        die "error [create a $ctxid_db file with your container's ID]"
+    fi
+    lxc_dataplane=1
     ;;
 *)  usage
 esac
