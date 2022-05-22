@@ -30,9 +30,9 @@ client_nexthop () {
     local mux=$1
     local dev=${mux2dev[$mux]}
     local devid=${dev##tap}
-    local mux_offset="$((devid<<3))"
+    local mux_offset="$(( devid << 3 ))"
     local ctxid=$(cat "$ctxid_db")
-    local cont_offset="$((ctxid*4+2))"
+    local cont_offset="$(( ctxid*4 + 2 ))"
     echo "100.125.$mux_offset.$cont_offset"
 }
 
@@ -152,8 +152,8 @@ withdraw    Withdraw prefix to one or all muxes.
             if using the app submodule to avoid conflicting routing
             rules.
 
--M          Change the announcements nexthop configuring mux to
-            redirect packets into the user's container. Must be used
+-M          Change the announcement's next-hop, configuring a mux to
+            redirect packets into the user's container.  Must be used
             with -m and a mux running a container.
 
 prefix      Choose the prefix to operate on.  Make sure the prefix
@@ -213,6 +213,10 @@ load_pfx2id
 
 if [ "$mux" != all ] && [ "${mux2dev[$mux]:-unknown}" = unknown ] ; then
     die "error [mux unknown: $mux]"
+fi
+
+if [[ $lxc_dataplane -eq 1 && $mux == all ]] ; then
+    die "error [-M can only be used with -m]"
 fi
 
 if [[ ${poison_list[*]:-undef} != undef ]] ; then

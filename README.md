@@ -125,9 +125,9 @@ or withdrawing prefixes, we support the following options:
   particularly useful if using the app submodule to avoid conflicting
   routing rules.
 
-* `[-M]`: Change the announcements nexthop configuring mux to
-  redirect packets into the user's container. Must be used
-  with -m and a mux running a container.
+* `[-M]`: Change the announcement's next-hop, configuring the mux to
+  redirect packets into the user's container.  Must be used with -m
+  and a mux running a container.
 
   [2]: https://peering.ee.columbia.edu/peers/
 
