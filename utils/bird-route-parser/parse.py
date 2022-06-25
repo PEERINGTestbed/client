@@ -59,8 +59,9 @@ def show_route(reader, outfd):
     network = None
     line = reader.readline()
     while line:
+        line = line.strip()
         m = re.match(route.SUMMARY_RE, line)
-        assert m, "%s" % line
+        assert m, f"Could not parse line: [{line}]"
         if m.group(route.SUMMARY_NETWORK_KEY) is not None:
             network = m.group(route.SUMMARY_NETWORK_KEY)
         rt = m.groupdict()
@@ -124,13 +125,13 @@ def main():
     if opts.infn == "-":
         opts.fd = sys.stdin
     else:
-        opts.fd = open(opts.infn, "r")
+        opts.fd = open(opts.infn, "r", encoding="utf8")
     reader = CachingBufferedLineReader(opts.fd)
 
     if opts.outfn.endswith(".gz"):
-        outfd = gzip.open(opts.outfn, "w+")
+        outfd = gzip.open(opts.outfn, "wt", encoding="utf8")
     else:
-        outfd = open(opts.outfn, "w+")
+        outfd = open(opts.outfn, "wt", encoding="utf8")
 
     opts.parser(reader, outfd)
 
