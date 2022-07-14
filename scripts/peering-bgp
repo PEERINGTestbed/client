@@ -35,15 +35,12 @@ reset_config () {
     rm -rf "$bird_filters"
 }
 
-
-remove_all_ip_rules () {  # {{{
+remove_all_ip_rules () {
     table=$1
     while ip $minus6 rule show | grep "$table:" > /dev/null ; do
         ip $minus6 rule del pref "$table"
     done
 }
-# }}}
-
 
 test $EUID -eq 0 || die "The BIRD BGP daemon requires root access."
 test $# -ge 1 || usage
