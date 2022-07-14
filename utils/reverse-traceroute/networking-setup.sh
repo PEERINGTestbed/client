@@ -116,6 +116,8 @@ function test_data_plane {
         #         ping -q -c 4 "184.164.$octet.254"
         docker run --network "pbr$idx" --ip "$ip" -it --rm busybox \
                 ping -q -c 4 8.8.8.8
+        docker run --network "pbr$idx" --ip "$ip" -it --rm busybox \
+                ping -q -c 4 google.com
         # docker run --network "br$octet" --ip "$ip" -it --rm \
         #         busybox traceroute 8.8.8.8
         idx=$(( idx + 1 ))
@@ -130,7 +132,7 @@ function test_data_plane {
 # setup_docker_bridges
 
 # announce_prefixes
-# test_data_plane
+test_data_plane
 # withdraw_prefixes
 
 # teardown_docker_bridges

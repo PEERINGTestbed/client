@@ -26,6 +26,8 @@ EOF
     exit 0
 }
 
+if ! which ipcalc > /dev/null ; then die "app requires the ipcalc tool" ; fi
+
 id=0
 prefix=invalid
 nsname=invalid

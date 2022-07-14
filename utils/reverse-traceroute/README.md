@@ -106,7 +106,7 @@ e-mail with the test results.
 ## Dependencies
 
 ```{bash}
-apt install bird openvpn socat
+apt install bird openvpn socat ipcalc
 systemctl stop openvpn bird bird6
 systemctl disable openvpn bird bird6
 pip3 install pexpect

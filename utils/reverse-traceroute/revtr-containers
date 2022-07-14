@@ -6,7 +6,7 @@ CTX_NAME_PREFIX=revtrvp
 function check_ip_not_on_host {
     local ip=$1
     while read -r pfx ; do
-        if check-ip-in-subnet.py "$ip" "$pfx" ; then
+        if ./check-ip-in-subnet.py "$ip" "$pfx" ; then
             echo "WARNING: IP $ip is connected to the loopback on the host"
         fi
     done < <(ip addr show dev lo | grep -oEe "inet6? [^ ]+" | cut -d " " -f 2)
@@ -14,15 +14,16 @@ function check_ip_not_on_host {
 
 function start_containers {
     local idx=$1
-    prefix=$(ip addr show dev "br$idx" | grep -oEe "inet6? [^ ]+" | awk '{print $2;}')
+    prefix=$(ip -4 addr show dev "pbr$idx" | grep -oEe "inet6? [^ ]+" | awk '{print $2;}')
     ip=$(ipcalc -n -b "$prefix" | grep HostMin | awk '{print $2;}')
+    echo "Interface pbr$idx using $prefix"
     check_ip_not_on_host "$ip"
     local ctxname=$CTX_NAME_PREFIX-$idx
     echo "Starting revtrvp container $ctxname using IP $ip"
-    docker run --name "$ctxname" --network="br$idx" --ip "$ip" \
+    docker run --name "$ctxname" --network="pbr$idx" --ip "$ip" \
             --restart=unless-stopped --detach \
             --log-opt max-size=1g --log-opt max-file=1 \
-            revtrvp /root.crt /plvp.config -loglevel debug &> /dev/null
+            revtrvp /root.crt /plvp.config -loglevel debug
 }
 
 function stop_containers {
