@@ -64,7 +64,7 @@ fi
 test $# -ge 1 || usage
 
 if [ -S "$bird_sock" ] ; then
-    if ! fuser "$bird_sock" > /dev/null ; then 
+    if ! fuser "$bird_sock" > /dev/null ; then
         rm -f "$bird_sock"
         echo "Deleted stale BIRD control socket"
     fi

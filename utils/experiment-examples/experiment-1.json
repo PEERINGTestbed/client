@@ -1,0 +1,74 @@
+{
+    "experiment": {
+        "description": "Testing prefix propagation of muxes amsterdam01, ufmg01 and seattle01",
+        "email": "noc@peering.ee.columbia.edu",
+        "rounds": [
+            {
+                "A": {
+                    "announce": [
+                        {
+                            "muxes": [
+                                "amsterdam01"
+                            ],
+                            "origin": 47065
+                        }
+                    ]
+                },
+                "B": {
+                    "announce": [
+                        {
+                            "muxes": [
+                                "amsterdam01"
+                            ],
+                            "origin": 47065
+                        }
+                    ]
+                }
+            },
+            {
+                "A": {
+                    "announce": [
+                        {
+                            "muxes": [
+                                "ufmg01"
+                            ],
+                            "origin": 47065
+                        }
+                    ]
+                },
+                "B": {
+                    "announce": [
+                        {
+                            "muxes": [
+                                "ufmg01"
+                            ],
+                            "origin": 47065
+                        }
+                    ]
+                }
+            },
+            {
+                "A": {
+                    "announce": [
+                        {
+                            "muxes": [
+                                "seattle01"
+                            ],
+                            "origin": 47065
+                        }
+                    ]
+                },
+                "B": {
+                    "announce": [
+                        {
+                            "muxes": [
+                                "seattle01"
+                            ],
+                            "origin": 47065
+                        }
+                    ]
+                }
+            }
+        ]
+    }
+}
