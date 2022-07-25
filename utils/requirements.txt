@@ -1,0 +1,2 @@
+beautifulsoup4==4.11.1
+pexpect==4.8.0
