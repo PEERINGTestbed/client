@@ -77,7 +77,7 @@ start)
     mkdir -p "$bird_routes"
     mkdir -p "$bird_filters"
     remove_all_ip_rules "$kernel_table"
-    $bird_exec -c "$bird_cfgfile" -s "$bird_sock"
+    (cd $peeringdir ; $bird_exec -c "$bird_cfgfile" -s "$bird_sock")
     ;;
 status)
     test -S "$bird_sock" || term "BIRD is down"
