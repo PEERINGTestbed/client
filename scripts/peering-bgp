@@ -69,7 +69,10 @@ cli)
     $birdc_exec -s "$bird_sock"
     ;;
 start)
-    test -S "$bird_sock" && die "error [BIRD control socket exists]"
+    if [ -S "$bird_sock" ]; then
+        echo "warning [BIRD control socket exists]"
+        (fuser "$bird_sock") || (rm -f "$bird_sock" && echo "BIRD control socket in bad state, deleting.")
+    fi
     reset_config
     mkdir -p "$bird_routes"
     mkdir -p "$bird_filters"

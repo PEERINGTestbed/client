@@ -25,7 +25,7 @@ announcements.
 You must have a pre-2.0 version of Bird to use the PEERING client. You can compile Bird from source after downloading the source from <http://bird.network.cz/?download>.
 
 You can also install these dependencies from your distro
-repository; on Debian use `apt-get install openvpn bird`. However, ensure that Bird is a pre-2.0 version.
+repository; on Debian use `apt-get install openvpn bird psmisc`. However, ensure that Bird is a pre-2.0 version.
 
 ### PEERING account setup
 
@@ -170,7 +170,7 @@ updating (add) 2804:269c:ff03:2:2::/80 via 2804:269c:ff00:2:1::1 dev tap2
 ```
 
 You can SSH into your container by using the *second host* in the `/30`
-subnet. In other words, SSH to the third address in the /30.  You should login as `root` using your private key:
+subnet. In other words, SSH to the third address in the /30.  You should log in as `root` using your private key:
 
 ```{bash}
 ssh -i ~/.ssh/peering_id_rsa root@100.125.16.10
@@ -216,7 +216,7 @@ namespace will need to change the name to avoid conflicts.  By default,
 the namespace routes egress traffic using table 20000, which is populated
 by BIRD.  The `-u` option allows the user to choose a specific upstream
 to route out of.  The `-d` flag removes a given namespace; `-d` removes
-the namespace pointed to by `-n` and routes created through upstrema
+the namespace pointed to by `-n` and routes created through upstream
 `-u`, so these parameters must be passed identically to when the
 namespace was created.
 
@@ -261,7 +261,7 @@ point.
 
 ## Further information
 
-More informations about PEERING configuration:
+More information about PEERING configuration:
 
 * [Client data plane.][3]
 * [Mux data plane.][4]
