@@ -76,6 +76,7 @@ cli)
     $birdc_exec -s "$bird_sock"
     ;;
 start)
+    test -S "$bird_sock" && die "error [BIRD control socket exists]"
     reset_config
     mkdir -p "$bird_routes"
     mkdir -p "$bird_filters"
