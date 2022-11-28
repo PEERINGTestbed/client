@@ -63,16 +63,19 @@ fi
 
 test $# -ge 1 || usage
 
+if [ -S "$bird_sock" ] ; then
+    if ! fuser "$bird_sock" > /dev/null ; then 
+        rm -f "$bird_sock"
+        echo "Deleted stale BIRD control socket"
+    fi
+fi
+
 case $1 in
 cli)
     test -S "$bird_sock" || die "error [BIRD control socket not found]"
     $birdc_exec -s "$bird_sock"
     ;;
 start)
-    if [ -S "$bird_sock" ]; then
-        echo "warning [BIRD control socket exists]"
-        (fuser "$bird_sock") || (rm -f "$bird_sock" && echo "BIRD control socket in bad state, deleting.")
-    fi
     reset_config
     mkdir -p "$bird_routes"
     mkdir -p "$bird_filters"
