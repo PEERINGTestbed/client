@@ -124,6 +124,8 @@ def main():
 
     if opts.infn == "-":
         opts.fd = sys.stdin
+    elif opts.infn.endswith(".gz"):
+        opts.fd = gzip.open(opts.infn, "r", encoding="utf8")
     else:
         opts.fd = open(opts.infn, "r", encoding="utf8")
     reader = CachingBufferedLineReader(opts.fd)
