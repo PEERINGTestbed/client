@@ -55,18 +55,23 @@ def show_protocols(reader, outfd):
 
 
 def show_route(reader, outfd):
-    routes = list()
+    routes = []
     network = None
     line = reader.readline()
     while line:
         line = line.strip()
         m = re.match(route.SUMMARY_RE, line)
-        assert m, f"Could not parse line: [{line}]"
+        assert m, f"Could not parse SUMMARY_RE on line: [{line}]"
         if m.group(route.SUMMARY_NETWORK_KEY) is not None:
             network = m.group(route.SUMMARY_NETWORK_KEY)
-        rt = m.groupdict()
+        mdata = m.groupdict()
+        rt = dict((k, v.strip()) for k, v in mdata.items() if v is not None)
         rt[route.SUMMARY_NETWORK_KEY] = network
-        rt = dict((k, v.strip()) for k, v in rt.items() if v is not None)
+        line = reader.readline()
+        m = re.match(route.VIA_RE, line)
+        assert m, f"Could not parse VIA_RE on line: [{line}]"
+        mdata = m.groupdict()
+        rt.update({(k, v.strip()) for k, v in mdata.items() if v is not None})
         v = util.parse_desc_lines(
             reader, route.DETAILS_RE, route.DETAILS_PARSERS, route.SUMMARY_RE
         )
@@ -125,7 +130,7 @@ def main():
     if opts.infn == "-":
         opts.fd = sys.stdin
     elif opts.infn.endswith(".gz"):
-        opts.fd = gzip.open(opts.infn, "r", encoding="utf8")
+        opts.fd = gzip.open(opts.infn, "rt", encoding="utf8")
     else:
         opts.fd = open(opts.infn, "r", encoding="utf8")
     reader = CachingBufferedLineReader(opts.fd)
