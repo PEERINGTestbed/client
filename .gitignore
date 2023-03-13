@@ -6,5 +6,5 @@ configs/bird/prefix-filters
 configs/bird/route-announcements
 configs/bird6/prefix-filters
 configs/bird6/route-announcements
-revtr*outdir
-utils/prefix-propagation/query.out
+utils/prefix-propagation/*.out
+utils/prefix-propagation/*.log
