@@ -18,6 +18,10 @@
       "minimum": 1,
       "maximum": 4294967295
     },
+    "community32": {
+      "type": "string",
+      "pattern": "^[0-9]{1,5}:[0-9]{1,5}$"
+    },
     "allocatedPrefix": {
       "$ref": "#/definitions/prefix",
       "enum": [
@@ -102,6 +106,13 @@
           "uniqueItems": true,
           "items": {
             "type": "number"
+          }
+        },
+        "commnunities": {
+          "type": "array",
+          "uniqueItems": true,
+          "items": {
+            "$ref": "#/definitions/community32"
           }
         },
         "prepend": {

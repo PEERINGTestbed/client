@@ -1,38 +1,82 @@
 #!/usr/bin/env python3
 
 import argparse
+import dataclasses
+import ipaddress
 import json
 import os
+import pathlib
 import subprocess
 import sys
 
+import dataclasses_json
 import jinja2
 import jsonschema
 import requests
 
 
+DEFAULT_BIRD_CFG_DIR = pathlib.Path("configs/bird/")
+DEFAULT_BIRD4_SOCK_PATH = pathlib.Path("var/bird.sock")
+DEFAULT_BIRD6_SOCK_PATH = pathlib.Path("var/bird6.sock")
+DEFAULT_ANNOUNCEMENT_SCHEMA = pathlib.Path("configs/announcement_schema.json")
+
+
+IPNetwork = ipaddress.IPv4Network  # | ipaddress.IPv6Network
+MuxName = str
+# MuxName should be upgraded to a enum.StrEnum when Bookworm and Ubuntu
+# 24.04LTS come out with Python 3.11
+
+
+@dataclasses_json.dataclass_json
+@dataclasses.dataclass
+class Announcement:
+    muxes: list[MuxName]
+    peer_ids: list[int]
+    communities: list[tuple[int, int]]
+    prepend: list[int]
+    origin: int
+
+
+@dataclasses_json.dataclass_json
+@dataclasses.dataclass
+class Update:
+    withdraw: list[MuxName]
+    announce: list[Announcement]
+
+
+@dataclasses_json.dataclass_json
+@dataclasses.dataclass
+class UpdateSet:
+    prefix2update: dict[str, Update]
+
+
 class AnnouncementController:
     def __init__(
-        self, bird_cfg_dir, bird_sock, schema_fn="configs/announcement_schema.json"
-    ):
-        with open(schema_fn, encoding="utf8") as fd:
+        self,
+        bird_cfg_dir: pathlib.Path = DEFAULT_BIRD_CFG_DIR,
+        bird4_sock: pathlib.Path = DEFAULT_BIRD4_SOCK_PATH,
+        schema_file: pathlib.Path = DEFAULT_ANNOUNCEMENT_SCHEMA,
+    ) -> None:
+        with open(schema_file, encoding="utf8") as fd:
             self.schema = json.load(fd)
-        self.bird_cfg_dir = str(bird_cfg_dir)
-        self.bird_sock = str(bird_sock)
+        self.bird_cfg_dir = bird_cfg_dir
+        self.bird_sock = bird4_sock
         self.config_template = self.__load_config_template()
         self.__create_routes()
 
-    def __load_config_template(self):
+    def __load_config_template(self) -> jinja2.Template:
         path = os.path.join(self.bird_cfg_dir, "templates")
         env = jinja2.Environment(loader=jinja2.FileSystemLoader(path))
         return env.get_template("export_mux_pfx.jinja2")
 
-    def __config_file(self, prefix, mux):
-        pfxfstr = prefix.replace("/", "-")
-        fn = f"export_{mux}_{pfxfstr}.conf"
-        return os.path.join(self.bird_cfg_dir, "prefix-filters", fn)
+    def __config_file(self, prefix: str, mux: MuxName) -> pathlib.Path:
+        assert ipaddress.ip_network(prefix) is not None
+        prefix = prefix.replace("/", "-")
+        prefix = prefix.replace(":", "i")  # removing colon from v6 prefixes
+        fn = f"export_{mux}_{prefix}.conf"
+        return self.bird_cfg_dir / "prefix-filters" / fn
 
-    def __create_routes(self):
+    def __create_routes(self) -> None:
         path = os.path.join(self.bird_cfg_dir, "route-announcements")
         os.makedirs(path, exist_ok=True)
         for pfx in self.schema["definitions"]["allocatedPrefix"]["enum"]:
@@ -41,34 +85,31 @@ class AnnouncementController:
             fd.write(f"route {pfx} unreachable;\n")
             fd.close()
 
-    def validate(self, announcement):
-        jsonschema.validate(announcement, self.schema)
+    def validate(self, updates: UpdateSet) -> None:
+        jsonschema.validate(updates.to_dict(), self.schema)
 
-    def deploy(self, announcement):
-        self.validate(announcement)
-        self.update_config(announcement)
+    def deploy(self, updates: UpdateSet) -> None:
+        self.validate(updates)
+        for prefix, update in updates.prefix2update.items():
+            for mux in update.withdraw:
+                self.withdraw(prefix, mux)
+            for announcement in update.announce:
+                self.announce(prefix, announcement)
         self.reload_config()
 
-    def update_config(self, announcement):
-        self.validate(announcement)
-        for prefix, announce in announcement.items():
-            for mux in announce.get("withdraw", list()):
-                self.withdraw(prefix, mux)
-            for spec in announce.get("announce", list()):
-                self.announce(prefix, spec)
-
-    def withdraw(self, prefix, mux):
+    def withdraw(self, prefix: str, mux: MuxName) -> None:
         try:
             os.unlink(self.__config_file(prefix, mux))
         except FileNotFoundError:
             pass
 
-    def announce(self, prefix, spec):
-        for mux in spec["muxes"]:
+    def announce(self, prefix: str, ann: Announcement) -> None:
+        for mux in ann.muxes:
             with open(self.__config_file(prefix, mux), "w", encoding="utf8") as fd:
-                fd.write(self.config_template.render(prefix=prefix, spec=spec))
+                data = self.config_template.render(prefix=prefix, spec=ann.to_dict())
+                fd.write(data)
 
-    def reload_config(self):
+    def reload_config(self) -> None:
         cmd = f"birdc -s {self.bird_sock}"
         proc = subprocess.Popen(
             cmd.split(),
@@ -179,16 +220,15 @@ def create_parser():
 
 
 def main():
-
     parser = create_parser()
     args = parser.parse_args()
 
     if args.announcement:
         with open(args.announcement, "r", encoding="utf8") as announcement_json_fd:
             announcement = json.load(announcement_json_fd)
-        bird_cfg_dir = "configs/bird"
-        bird_sock = "var/bird.ctl"
-        schema_fn = "configs/announcement_schema.json"
+        bird_cfg_dir = pathlib.Path("configs/bird")
+        bird_sock = pathlib.Path("var/bird.ctl")
+        schema_fn = pathlib.Path("configs/announcement_schema.json")
 
         ctrl = AnnouncementController(bird_cfg_dir, bird_sock, schema_fn)
         ctrl.deploy(announcement)
