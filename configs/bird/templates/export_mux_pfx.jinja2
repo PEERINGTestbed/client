@@ -5,8 +5,11 @@ if ( net = {{prefix}} ) then {
     bgp_path.prepend({{asn}});
     {%- endfor %}
     {%- endif %}
-    {%- for c in spec.get('peers', []) %}
+    {%- for c in spec.get('peer_ids', []) %}
     bgp_community.add((47065,{{c}}));
+    {%- endfor %}
+    {%- for c1, c2 in spec.get('communities', []) %}
+    bgp_community.add(({{c1}},{{c2}}));
     {%- endfor %}
     accept;
 }
