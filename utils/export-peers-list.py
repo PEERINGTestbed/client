@@ -1,3 +1,5 @@
+#!/usr/bin/env python3
+
 import urllib.request
 from bs4 import BeautifulSoup
 import json
