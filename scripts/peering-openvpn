@@ -47,22 +47,50 @@ case $1 in
 up)
     test $# -ge 2 || usage
     mux=$2
-    mux_status_check "$mux"
-    if [[ $mstat =~ ^up.*$ ]] ; then term "tunnel $mux already up" ; fi
-    if ! openvpn --cd "$progdir" --config "$openvpn_cfgs/$mux.conf" ; then
-        die "openvpn did not start correctly, please check logs"
+    if [[ "$mux" = all ]] ; then
+        for cmux in "${!mux2dev[@]}" ; do
+            mux_status_check "$cmux"
+            if [[ $mstat =~ ^up.*$ ]] ; then
+                echo "tunnel $cmux already up"
+                continue
+            fi
+            if ! openvpn --cd "$progdir" --config "$openvpn_cfgs/$cmux.conf" ; then
+                die "openvpn did not start correctly for $cmux, please check logs"
+            fi
+        done
+    else
+        mux_status_check "$mux"
+        if [[ $mstat =~ ^up.*$ ]] ; then term "tunnel $mux already up" ; fi
+        if ! openvpn --cd "$progdir" --config "$openvpn_cfgs/$mux.conf" ; then
+            die "openvpn did not start correctly, please check logs"
+        fi
     fi
     ;;
 down)
     test $# -ge 2 || usage
     mux=$2
-    mux_status_check "$mux"
-    if [[ $mstat =~ ^down$ ]] ; then term "tunnel $mux already down" ; fi
-    dev=${mux2dev[$mux]}
-    echo "signal SIGTERM" | socat - "UNIX:$varrun/$mux.sock" > /dev/null
-    rm -f "$varrun/$mux.pid"
-    rm -f "$varrun/$mux.sock"
-    rm -f "$varrun/$mux.updown"
+    if [[ "$mux" = all ]] ; then
+        for cmux in "${!mux2dev[@]}" ; do
+            mux_status_check "$cmux"
+            if [[ $mstat =~ ^down$ ]] ; then
+                echo "tunnel $cmux already down"
+                continue
+            fi
+            dev=${mux2dev[$cmux]}
+            echo "signal SIGTERM" | socat - "UNIX:$varrun/$cmux.sock" > /dev/null
+            rm -f "$varrun/$cmux.pid"
+            rm -f "$varrun/$cmux.sock"
+            rm -f "$varrun/$cmux.updown"
+        done
+    else
+        mux_status_check "$mux"
+        if [[ $mstat =~ ^down$ ]] ; then term "tunnel $mux already down" ; fi
+        dev=${mux2dev[$mux]}
+        echo "signal SIGTERM" | socat - "UNIX:$varrun/$mux.sock" > /dev/null
+        rm -f "$varrun/$mux.pid"
+        rm -f "$varrun/$mux.sock"
+        rm -f "$varrun/$mux.updown"
+    fi
     ;;
 log)
     test $# -ge 2 || usage
