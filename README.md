@@ -1,164 +1,58 @@
-
 # PEERING client controller
 
-The PEERING client controller is a set of scripts to ease
-configuration and operation of a PEERING client, able to connect to
-PEERING muxes and announce PEERING prefixes.
-
-## Recent changes
-
-* We have recently merged the `-c` and `-C` parameters used to attach communities to announcements.  The functionality is identical to before, but the interface for specifying communities has changed.
+The PEERING client controller is a set of scripts to ease configuration and operation of a PEERING client, able to connect to PEERING routers and announce PEERING prefixes.
 
 ## Installation
 
-After cloning [this repository][1], follow the following
-instructions to install software dependencies and set up your
-PEERING client.
+After cloning [this repository][1], follow the instructions below to
+install software dependencies and set up your PEERING client.
 
-[1]: https://github.com/TransitPortal/client
+[1]: https://github.com/PEERINGTestbed/client
 
 ### Software dependencies
 
-The client runs OpenVPN to connect directly to PEERING muxes and
-the BIRD software router to establish BGP sessions and perform
-announcements.
+The client runs OpenVPN to connect your machine directly to PEERING routers.  We then run the BIRD software router to establish BGP sessions over the OpenVPN tunnels.  BIRD is used to control prefix announcements.  You will also need the `socat` tool that scripts use to interact with the OpenVPN socket.  On Debian, you'll need `apt install bird openvpn socat psmisc`.
 
-You must have a pre-2.0 version of Bird to use the PEERING client. You can compile Bird from source after downloading the source from <http://bird.network.cz/?download>.
+After installing OpenVPN and BIRD, you may want to disable these services on your machine, which some distributions may enable by default.  On Debian, run `systemctl disable bird bird6 openvpn` to accomplish this.
 
-You can also install these dependencies from your distro
-repository; on Debian use `apt-get install openvpn bird psmisc`. However, ensure that Bird is a pre-2.0 version.
+The provided BIRD configurations are compatible with BIRD 1.6 (but not 2+).  BIRD is available for most distributions, but you can compile Bird from [source][bird-src].
+
+[bird-src]: http://bird.network.cz/?download
 
 ### PEERING account setup
 
-To establish OpenVPN tunnels with PEERING muxes, you will need
-PEERING-issued certificates.  You can get certificates by submitting
-a project proposal on our website.  Copy your certificate files into
-`certs/` and rename them as `client.crt`, and `client.key`.  Then
-`chmod 400` all files in `certs/` to prevent unauthorized access to
-your keys.
+To establish OpenVPN tunnels with PEERING routers, you will need PEERING-issued certificates.  You can get certificates by submitting a project proposal on our website.  Copy your certificate files into `certs/` and rename them as `client.crt`, and `client.key`.  Then `chmod 400` all files in `certs/` to prevent unauthorized access to your keys.
 
-You will also need to *explicitly* create a `prefixes.txt` file
-containing the prefixes you are going to announce.  This is an extra
-safety net.  Specify one prefix per line, in the usual format, e.g.,
-`184.164.236.0/24`.
+You will also need to *explicitly* create a `prefixes.txt` file containing the prefixes you are going to announce.  This is an extra safety net.  Specify one prefix per line, in the usual format, e.g., `184.164.236.0/24`.
 
 ## Controlling OpenVPN
 
-`usage ./peering openvpn status|up mux|down mux`
+Run `./peering openvpn` to get a description of command-line parameters for interacting with OpenVPN.  The `status` command shows the status of OpenVPN tunnels.  Tunnels can be either up or down.  If a tunnel is up, we will also list the device (the interface) it is running on and the local IP address.  You can use `ip route` to identify the IP address of the remote end as the gateway associated with each tunnel.
 
-Both OpenVPN and BIRD have to run with superuser rights, you may
-want to run the provided scripts as root or `suid` the script.  When
-controlling OpenVPN, we support three operations:
+You can pass the special value `all` to operate on all PEERING routers simultaneously.
 
-* `peering openvpn status`: show the status of OpenVPN tunnels.
-  Tunnels can be either up or down.  If a tunnel is up, we will also
-  list the device (the interface) it is running on and the local IP
-  address.  You can use `ip route` to identify the IP address of the
-  remote end as the gateway associated with each tunnel.
-
-* `peering openvpn up|down mux`: bring the tunnel up to `mux` up or
-  down.  Muxes are identified by their nicknames, which you can
-  check by running `openvpn status` above.
+> Creating BGP sessions with many routers simultaneously will significantly increase the amount of memory needed by BIRD.
 
 ## Controling BIRD
 
-`usage: ./peering bgp cli|start|status|stop|adv mux`
+Run `./peering bgp` or `./peering bgp6` to get a description of command-line parameters for interacting with BIRD.  You need to start the v4 and v6 versions separately.  When you start BIRD, it will continuously attempt to establish BGP sessions with all PEERING routers (and will succeed to establish a session if the OpenVPN tunnel is up).  Starting or stopping BIRD will establish and close all BGP sessions automatically.
 
-We support five operations to interact with BIRD:
-
-* `peering bgp start|stop`: start or stop the BIRD software router.
-  BIRD is preconfigured to establish BGP sessions with all PEERING
-  muxes through OpenVPN tunnels.  Use OpenVPN to create tunnels to
-  the muxes you want BIRD to establish BGP sessions with.  Starting
-  or stopping bird will establish and close all BGP sessions
-  automatically.
-
-* `peering bgp status`: show the status of the BIRD software router.
-  If BIRD is running, it will show the status of BGP all sessions.
-  Sessions in Idle state are waiting for their respective OpenVPN
-  tunnels to be established.  Sessions in the Established state are
-  exchanging routes.
-
-* `peering bgp adv mux`: show which prefixes are being advertised
-  to `mux`.  This is useful when debugging announcements.
-
-* `peering bgp cli`: open the BIRD command line interface.  Type '?'
-  in the BIRD interface to see a list of possible commands.  Use at
-  your own risk.
+When checking the `status` of BGP connections, note that sessions in the "Idle" state are waiting for their respective OpenVPN tunnels to come up.  This is not an issue.  Sessions in the Established state are up and exchanging routes.
 
 ## Controlling prefix announcements
 
-```{text}
-usage: peering prefix announce|withdraw [-m mux [-M]]
-                                        [-p poison | [-P prepend] [-o origin]]
-                                        [-c id1] ... [-c idN]
-                                        [-R]
-                                        prefix
-```
-
-We also provide support for announcing and withdrawing PEERING
-prefixes.  Be sure to use only prefixes allocated to you, or your
-announcements will be filtered at PEERING servers.  When announcing
-or withdrawing prefixes, we support the following options:
-
-* `[-m mux]`: control which `mux` to announce or withdraw from.
-  Use the mux nickname as shown by `openvpn status`.  The default is
-  to announce and withdraw from all muxes (anycast).
-
-* `[-p asn]`: poison a given ASN, i.e., prepend the announcement to
-  include `asn` in the AS-path and trigger BGP loop prevention.
-  Also known as BGP poisoning.  [default: do not poison]
-
-* `[-P N]`: prepend the origin ASN `N` times.  Cannot be combined
-  with `-p`, can be combined with `-o`.  [default: 0]
-
-* `[-o asn]`: change the origin ASN, i.e., the first ASN in the AS-path,
-  to `asn`.  Cannot be combined with `-p`, sets -P to 1 if not specified.
-  [default: unchanged (47065)]
-
-* `[-c id]`: add community `(47065,id)` to the announcement, making
-  sending the announcement through the peer identified by `id` only.
-  Can be used multiple times to send announcements through multiple
-  peers.  Click [here][2] for a list of PEERING peers.
-
-* `[-R]`: This flag skips configuration of the data plane, and is
-  particularly useful if using the app submodule to avoid conflicting
-  routing rules.
-
-* `[-M]`: Change the announcement's next-hop, configuring the mux to
-  redirect packets into the user's container.  Must be used with -m
-  and a mux running a container.
-
-  [2]: https://peering.ee.columbia.edu/peers/
+Run `./peering prefix` to get a description of command-line parameters available to control prefix announcements.  The scripts supports prepending, changing the origin AS, poisoning an AS, and attaching communities.  Note that BGP poisoning and communities require special capabilities that must be assigned to your account by PEERING staff before you can use them.
 
 ## Controlling TinyProxy
 
-`usage ./peering proxy start|stop|status`
+We use TinyProxy to provide a proxy for HTTP access from inside your container on PEERING routers.  If your experiment does not run containers on PEERING routers, then you have no need to use TinyProxy.
 
-Both OpenVPN and TinyProxy have to run with superuser rights.  The proxy
-for a given mux's container needs to start after the OpenVPN tunnel is
-established, or TinyProxy will be unable to bind to the right IP
-address.
+Run `./peering proxy` to get a description of command-line parameters available to interact with TinyProxy.  The proxy for a given router's container needs to start after the OpenVPN tunnel is established, or TinyProxy will be unable to bind to the right IP address.
 
-This script reads your container's *allocated prefix ID* from a file
-named `container.txt`.  This information is necessary to compute
-prefixes and install routes, you can find it on the PEERING website
-dashboard.
-
-```{bash}
-echo ID > container.txt
-```
-
-* `peering proxy start mux`: start the proxy for communicating with
-  the container on the given mux.
-
-* `peering proxy stop mux`: stop the proxy for the mux passed as
-  parameter.  Use `all` to stop all proxies.
-
-* `peering proxy status`: show the status of running proxies.
+This script reads your container's *allocated prefix ID* from a file named `container.txt`.  This information is necessary to compute prefixes and install routes, you can find your container's ID on the PEERING website dashboard.  Generate the file with `echo ID > container.txt`.
 
 Bringing up a proxy prints relevant information to access and interact
-with that mux's container.
+with that router's container.
 
 ```{text}
 TinyProxy addresses for isi01 (tap2, 2)
@@ -186,108 +80,58 @@ apt update
 apt install lighttpd
 ```
 
-Containers have limited RAM and disk space. The amount of RAM available
-on containers is *insufficient* to run a PEERING client on IXP sites
-(e.g., `amsterdam01` and `seattle01`). We recommend users run the
-PEERING client remotely (e.g., on the cloud or at a server in their
-institution), and route traffic into the container by rewriting the BGP
-next-hop field.
+Containers have limited RAM and disk space. The amount of RAM available on containers is *insufficient* to run a PEERING client on IXP sites (e.g., `amsterdam01` and `seattle01`). We recommend users run the PEERING client remotely (e.g., on the cloud or at a server in their institution), and route traffic into the container by rewriting the BGP next-hop field (see the `-M` parameter to `./peering prefix`).
 
 ## Running an application behind PEERING
 
-The `appns` module configures a network namespace with a single
+The `app` module configures a network namespace with a single
 interface, and routes the network namespace through PEERING OpenVPN
-tunnels.
+tunnels.  Run `./peering app` for a list of available parameters.
 
-```{text}
-usage: peering appns create -p prefix [-n NSNAME] [-u UPSTREAM] [-d]
+Each application operates on a PEERING prefix (either v4 or v6).  We support
+isolating applications in their own network namespace or with a Linux virtual bridge.  The virtual bridge approach is useful to run Docker containers attached to the bridge.
 
--p PREFIX       Prefix that will be used in the application
--n NSNAME       Name of the created namespace, should contain only
-                [0-9a-z]. Defaults to peeringapp; interfaces have h
-                and ns suffixes.
--u UPSTREAM     Route egress traffic through specific upstream.  By
-                default traffic is routed through table 20000 populated by BIRD.
--d              Remove namespace, interfaces, and routes
-```
-
-Each namespace operates on a PEERING prefix (either v4 or v6).  By
-default, the namespace is called `peeringapp`. Users that need multiple
-namespace will need to change the name to avoid conflicts.  By default,
-the namespace routes egress traffic using table 20000, which is populated
-by BIRD.  The `-u` option allows the user to choose a specific upstream
-to route out of.  The `-d` flag removes a given namespace; `-d` removes
-the namespace pointed to by `-n` and routes created through upstream
-`-u`, so these parameters must be passed identically to when the
-namespace was created.
-
-## Running announcements via Web
-
-PEERING offers a way to make announcements via REST API, without the need for a VPN
-connection and prior approval of an experiment on the platform. These announcements are
-scheduled and made according to the availability of prefixes. Each sequence of
-announcements is considered an experiment, which will run one after the other in a 90-minute interval.
-
-An example of an experiment can be seen at `utils/experiment-examples/experiment-1.json`.
-An experiment can be generated by using the following python code `utils/experiment-
-generator.py`.
-
-To deploy an experiment we can use the peering script in this directory. Just pass the
-experiment as parameter and the URL of the page.
-
-`./peering.py --experiment <experiment.json> --url <api-url>`
-
-Note that you must have the permission token that is available in the user dashboard on the PEERING site. The token must be in the certificate directory `certs/token.json` as follows:
-
-```
-{
-  "access":"<token>"
-  "refresh": ""
-}
-```
-
-PS: The refresh token is not required, this functionality is currently disabled
-
-More information on the wiki [page][5]
+By default, the namespace or bridge is called `pappX`, where X is an ID to identify the namespace.  Users that need multiple applications will need to set a different ID to each application.  By default, the application's egress traffic will be routed using table 20000, which is populated by BIRD.  An option allows the user to choose a specific upstream to route egress traffic out of (`-u`).  When deleting an application (`-d`), pass all the other parameters identically to when the application was created.
 
 ### Troubleshooting
 
 In case sending traffic out of the namespace does not work, here are a list of things to check:
 
 * Check that PEERING OpenVPN tunnels and BGP sessions are up; announce a prefix and check reachability from the host.
-* Check that IP forwarding is enabled (e.g., run `sysctl -w net.ipv4.ip_forward=1`)
-* Check that the `FORWARD` chain in `iptables` is set to `ACCEPT`, and change it if needed (`iptables -P FORWARD ACCEPT`)
-* Check that the DNS resolver replies to requests from PEERING space
+* Check that IP forwarding is enabled (e.g., run `sysctl -w net.ipv4.ip_forward=1`).
+* Check that the `FORWARD` chain in `iptables` is set to `ACCEPT`, and change it if needed (`iptables -P FORWARD ACCEPT`).
+* Check that the DNS resolver replies to requests from PEERING space.
+
+## Running announcements via Web
+
+PEERING offers a way to make announcements via REST API, without the need for a VPN connection and prior approval of an experiment on the platform.  These announcements are scheduled and made according to the availability of prefixes.  Each sequence of announcements is considered an experiment.  Each  announcement lasts 90 minutes (to allow for BGP convergence and avoid route-flap dampening).
+
+To deploy an experiment we can use the `peering.py` script in this directory.  Just pass the experiment as parameter and the URL of the page.  An example of an experiment can be seen at `utils/experiment-examples/experiment-1.json`.  An experiment can be generated by using the following python code `utils/experiment-generator.py`.
+
+Access to the API is controlled by a permission token that becomes available to you in the user dashboard on the PEERING site.  Note that the API is very limited; if you need fine-grained control over the announcements, consider submitting a proposal on the Website to receive full access and use the functionality above.  The token must be in the certificate directory `certs/token.json` like shown below.  The refresh token is currently not required.  More information on the wiki [page][5]
+
+```json
+{
+  "access": "<token>",
+  "refresh": ""
+}
+```
 
 ## Guidelines
 
 Follow these guidelines when using your PEERING client:
 
-* Do not announce prefixes that are not allocated to your
-  experiment.  Do not announce prefixes outside of PEERING address
-  space.  (The PEERING prefix control script will print a list of
-  valid PEERING prefixes if you input an incorrect one.)
+* Do not announce prefixes that are not allocated to your experiment.  Do not announce prefixes outside PEERING address space.  (The PEERING prefix control script will print a list of valid PEERING prefixes if you input an incorrect one.)
 
-* Similarly, do not spoof packets with source IP addresses outside
-  the PEERING address space allocated to your experiment.
+* Similarly, do not spoof packets with source IP addresses outside the PEERING address space allocated to your experiment.
 
-* Do not change announcements more than once every 90 minutes.  This
-  ensures your experiment is not affected by route-flap dampening
-  and avoids attracting complaints operators.
+* Do not change announcements more than once every 10 minutes.  For best results, prefer to leave announcements up for 90 minutes to avoid route-flap dampening.
 
-* Be conservative.  Routers are often running close to their limits
-  and we do not want any breakage.  In particular, do not announce
-  AS-paths with more than 5 AS-hops, do not announce paths
-  containing AS-sets with more than 5 ASes, and do not announce
-  paths with more than 5 attached communities.
+* Be conservative.  Routers are often running close to their limits and our first priority is to not disrupt Internet operation.  In particular, do not announce AS-paths with more than 5 AS-hops, do not announce paths containing AS-sets with more than 5 ASes, and do not announce paths with more than 5 attached communities.
 
 ## Limitations and extending the controller
 
-The control scripts allow you to quickly start using PEERING.  They
-do not cover all possible uses of PEERING.  If you need to perform
-more complex announcements (e.g., make BGP announcements with BGP
-communities attached), these scripts provide a useful starting
-point.
+The control scripts allow you to quickly start using PEERING.  They do not cover all possible uses of PEERING.  If you need to perform more complex announcements (e.g., make BGP announcements with BGP communities attached), these scripts provide a useful starting point.
 
 ## Further information
 
@@ -295,7 +139,7 @@ More information about PEERING configuration:
 
 * [Client data plane.][3]
 * [Mux data plane.][4]
-* Additional information can be found [here][5].
+* Additional information can be found in the [Wiki][5].
 
 [3]: https://github.com/PEERINGTestbed/client/wiki/Client-data-plane/
 [4]: https://github.com/PEERINGTestbed/client/wiki/Mux-data-plane/
@@ -303,10 +147,4 @@ More information about PEERING configuration:
 
 ## Python library
 
-The `peering.py` module can be imported into Python programs to
-programmatically control announcements.  It is tested in `python3`
-and depends on `jsonschema` and `jinja2`.  Announcements are
-specified in JSON; the JSON schema is described in
-`configs/announcement_schema.json`.  You should edit the
-`allocatedPrefixes` entry in the JSON schema to the prefixes
-allocated to your experiment.
+The `peering.py` module can also be imported into Python programs to programmatically control announcements.  Announcements are specified in JSON, following the JSON schema in `configs/announcement_schema.json`.  You should edit the `allocatedPrefixes` entry in the JSON schema to the prefixes allocated to your experiment.

@@ -87,7 +87,7 @@ Usage: peering prefix announce|withdraw [-m mux [-M]]
                                         [-p poison] ... [-p poison]
                                         [-c ASN,COMM] ... [-c ASN,COMM]
                                         [-l ASN,X,Y] ... [-l ASN,X,Y]
-                                        [-R]
+                                        [-R] [-M]
                                         prefix
 
 Options can be specified in any order, but announce|withdraw must
