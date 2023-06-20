@@ -11,7 +11,7 @@ install software dependencies and set up your PEERING client.
 
 ### Software dependencies
 
-The client runs OpenVPN to connect your machine directly to PEERING routers.  We then run the BIRD software router to establish BGP sessions over the OpenVPN tunnels.  BIRD is used to control prefix announcements.  You will also need the `socat` tool that scripts use to interact with the OpenVPN socket.  On Debian, you'll need `apt install bird openvpn socat psmisc`.
+The client runs OpenVPN to connect your machine directly to PEERING routers.  We then run the BIRD software router to establish BGP sessions over the OpenVPN tunnels.  BIRD is used to control prefix announcements.  You will also need the `socat` tool that scripts use to interact with the OpenVPN socket.  On Debian, you'll need `apt install bird openvpn socat psmisc ipcalc`.
 
 After installing OpenVPN and BIRD, you may want to disable these services on your machine, which some distributions may enable by default.  On Debian, run `systemctl disable bird bird6 openvpn` to accomplish this.
 
