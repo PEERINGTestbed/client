@@ -101,7 +101,7 @@ else
     fprefix=$(echo "$prefix" | sed -e "s|.[0-9]*/[0-9-]*|.0/24|")
 fi
 
-if ip addr | grep -Ee "inet6? $appip" &> /dev/null ; then
+if [[ $delete -eq 0 ]] && ip addr | grep -Ee "inet6? $appip" &> /dev/null ; then
     echo "Application IP $appip is assigned to an interface on the host."
     echo "ARP resolution and routing will not work.  Consider using the -R"
     echo "parameter to the [peering prefix] command."
@@ -180,9 +180,10 @@ function setup_source_routing {
         else
             gwip=100.$((64 + devid)).128.1
         fi
+        ip $minus6 route flush table $table || true
         ip $minus6 route add default via $gwip dev "$tapdev" table $table
-        ip $minus6 rule add from "$appip" table $table pref $table
-        ip $minus6 rule add iif $devname table $table pref $table
+        ip $minus6 rule add from "$appip" table $table pref $table || true
+        ip $minus6 rule add iif $devname table $table pref $table || true
     fi
 }
 
