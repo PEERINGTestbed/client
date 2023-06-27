@@ -17,8 +17,8 @@ import requests
 
 
 DEFAULT_BIRD_CFG_DIR = pathlib.Path("configs/bird/")
-DEFAULT_BIRD4_SOCK_PATH = pathlib.Path("var/bird.sock")
-DEFAULT_BIRD6_SOCK_PATH = pathlib.Path("var/bird6.sock")
+DEFAULT_BIRD4_SOCK_PATH = pathlib.Path("var/bird.ctl")
+DEFAULT_BIRD6_SOCK_PATH = pathlib.Path("var/bird6.ctl")
 DEFAULT_ANNOUNCEMENT_SCHEMA = pathlib.Path("configs/announcement_schema.json")
 
 
@@ -35,7 +35,6 @@ class Announcement:
     peer_ids: list[int]
     communities: list[tuple[int, int]]
     prepend: list[int]
-    origin: int
 
 
 @dataclasses_json.dataclass_json
@@ -123,6 +122,8 @@ class AnnouncementController:
         r = proc.wait()
         if r != 0:
             logging.warning("BIRD reconfigure exited with status %d", r)
+            logging.warning("%s", _stdout)
+            logging.warning("%s", _stderr)
 
 
 class ExperimentController:
