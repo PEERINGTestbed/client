@@ -20,10 +20,10 @@ function start_containers {
     check_ip_not_on_host "$ip"
     local ctxname=$CTX_NAME_PREFIX-$idx
     echo "Starting revtrvp container $ctxname using IP $ip"
-    docker run --name "$ctxname" --network="pbr$idx" --ip "$ip" \
+    docker run --name "$ctxname" --network="pbr$idx" --ip "$ip" --dns 8.8.8.8 \
             --restart=unless-stopped --detach \
             --log-opt max-size=1g --log-opt max-file=1 \
-            revtrvp /root.crt /plvp.config -loglevel debug
+            revtrvp /server.crt /plvp.config -loglevel info
 }
 
 function stop_containers {
