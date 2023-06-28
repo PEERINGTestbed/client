@@ -1,12 +1,11 @@
 #!/bin/bash
-set -u
-set -x
+set -eu
 
 progdir=$(cd "$(dirname "$(readlink -f "$0")")" && pwd -P)
 export progdir
 
-export OPENVPN_DELAY_SEC=10
-export CDIR=/home/cunha/git/peering/client
+export OPENVPN_DELAY_SEC=15
+export CDIR=$HOME/git/peering/client
 export CONVERGENCE_TIME=180
 
 declare -gA mux2id
@@ -21,20 +20,63 @@ mux2id=([amsterdam01]=5
         [ufmg01]=7
         [ufms01]=18
         [utah01]=17
-        [uw01]=10
-        [wisc01]=11)
+        [wisc01]=11
+        [sbu01]=15
+    )
+        # [uw01]=10
+
+declare -ga prefixes
+prefixes=(
+    184.164.224.0/24
+    184.164.225.0/24
+    184.164.231.0/24
+    184.164.232.0/24
+    184.164.234.0/24
+    184.164.235.0/24
+    184.164.238.0/24
+    184.164.239.0/24
+    184.164.240.0/24
+    184.164.242.0/24
+    184.164.243.0/24
+    184.164.244.0/24
+    184.164.245.0/24
+    184.164.246.0/24
+    184.164.247.0/24
+    184.164.248.0/24
+    184.164.249.0/24
+    184.164.250.0/24
+    184.164.251.0/24
+    184.164.254.0/24
+)
 
 declare -gA prefix2mux
 prefix2mux=(
-    [184.164.224.0/24]=neu01
+    [184.164.224.0/24]=amsterdam01
+    [184.164.225.0/24]=seattle01
+    [184.164.231.0/24]=gatech01
+    [184.164.232.0/24]=grnet01
+    [184.164.234.0/24]=isi01
+    [184.164.235.0/24]=sbu01
+    [184.164.238.0/24]=wisc01
+    [184.164.239.0/24]=seattle01
+    [184.164.240.0/24]=seattle01
+    [184.164.242.0/24]=seattle01
+    [184.164.243.0/24]=seattle01
+    [184.164.244.0/24]=seattle01
+    [184.164.245.0/24]=amsterdam01
+    [184.164.246.0/24]=amsterdam01
+    [184.164.247.0/24]=amsterdam01
+    [184.164.248.0/24]=amsterdam01
+    [184.164.249.0/24]=amsterdam01
+    [184.164.250.0/24]=grnet01
+    [184.164.251.0/24]=grnet01
+    [184.164.254.0/24]=grnet01
 )
-    # [184.164.225.0/24]=amsterdam01
-    # [184.164.246.0/24]=seattle01
-    # [184.164.254.0/24]=utah01
+
 
 function setup_docker_bridges {
     local idx=1
-    for prefix in "${!prefix2mux[@]}" ; do
+    for prefix in "${prefixes[@]}" ; do
         local mux=${prefix2mux[$prefix]}
         "$CDIR/peering" app -i $idx -b -p "$prefix" -u "$mux"
         idx=$(( idx + 1 ))
@@ -43,7 +85,7 @@ function setup_docker_bridges {
 
 function teardown_docker_bridges {
     local idx=1
-    for _prefix in "${!prefix2mux[@]}" ; do
+    for _prefix in "${prefixes[@]}" ; do
         "$CDIR/peering" app -i $idx -b -d
         idx=$(( idx + 1 ))
     done
@@ -81,7 +123,7 @@ function teardown_bgp_sessions {
 }
 
 function announce_prefixes {
-    test_withdraw_prefixes
+    withdraw_prefixes
     echo "Announcing prefixes"
     for prefix in "${!prefix2mux[@]}" ; do
         local mux=${prefix2mux[$prefix]}
@@ -95,7 +137,7 @@ function announce_prefixes {
 
 function withdraw_prefixes {
     echo "Withdrawing prefixes"
-    for prefix in "${!prefix2mux[@]}" ; do
+    for prefix in "${prefixes[@]}" ; do
         echo "  withdraw $prefix"
         "$CDIR/peering" prefix withdraw "$prefix" &> /dev/null
     done
@@ -103,6 +145,7 @@ function withdraw_prefixes {
 
 function test_data_plane {
     local idx=1
+    set +e
     for prefix in "${!prefix2mux[@]}" ; do
         local mux=${prefix2mux[$prefix]}
         local ip=${prefix%%.0/24}.130
@@ -114,14 +157,17 @@ function test_data_plane {
         #         busybox ip route
         # docker run --network "br$octet" --ip "$ip" -it --rm busybox \
         #         ping -q -c 4 "184.164.$octet.254"
-        docker run --network "pbr$idx" --ip "$ip" -it --rm busybox \
-                ping -q -c 4 8.8.8.8
-        docker run --network "pbr$idx" --ip "$ip" -it --rm busybox \
-                ping -q -c 4 google.com
-        # docker run --network "br$octet" --ip "$ip" -it --rm \
-        #         busybox traceroute 8.8.8.8
+        docker run --network "pbr$idx" --ip "$ip" --rm --dns 8.8.8.8 \
+                --entrypoint=/usr/bin/ping mdeb -c4 -R sf.net
+        docker run --network "pbr$idx" --ip "$ip" -it --rm --dns 8.8.8.8 \
+                busybox ping -q -c 4 8.8.8.8
+        docker run --network "pbr$idx" --ip "$ip" -it --rm --dns 8.8.8.8 \
+                busybox ping -q -c 4 sf.net
+        # docker run --network "pbr$idx" --ip "$ip" -it --rm --dns 8.8.8.8 \
+                # busybox traceroute 8.8.8.8
         idx=$(( idx + 1 ))
     done
+    set -e
 }
 
 # The following can be run to test the control and data planes.  The
