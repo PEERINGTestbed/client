@@ -6,9 +6,19 @@
 
 The Docker container for the Reverse Traceroute (RevTr) VP ([code](https://github.com/NEU-SNS/revtrvp.git)) assumes a single interface.  To allow the container to communicate with multiple PEERING upstreams, we create a Docker bridge and attach the container to the bridge.  Packets can then flow through the brigde between the RevTr Docker container and PEERING OpenvVPN devices.
 
-We configure Docker to *not* NAT the addresses of containers.  However, you may also need to get rid of all `iptables` rules installed by Docker.  You can do this by adding `"iptables": false` to your `/etc/docker/daemon.json` file.
+We need Docker to *not* NAT the addresses of containers (as they will use public addresses from PEERING).  You can do this by adding `"iptables": false` to your `/etc/docker/daemon.json` file.  However, you may also need to get rid of all `iptables` rules installed by Docker, enabling IP forwarding, and allowing packets on the forwarding chain:
+
+```bash
+# Flushing iptables rules may break networking to your machine, be careful.
+iptables -t nat -F
+iptables -F
+iptables -P FORWARD ACCEPT
+sysctl -w net.ipv4.ip_forward=1
+```
 
 You can use the `./peering app -b` command to create a Docker bridge for the container that bypasses NAT.  We assume one VP per PEERING prefix; if this matches your deployment, you can configure one bridge for each prefix.  We configure Docker to hand out addresses in the PEERING prefix to be used for the VP.
+
+> `./peering app` is somewhat fragile.  For example, it may break if bridges already exist.  Resetting the network namespace to a "clean" state is recommended.
 
 ### Configure source routing
 
