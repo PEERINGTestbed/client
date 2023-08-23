@@ -76,6 +76,8 @@
       "enum": [
         "amsterdam01",
         "clemson01",
+        "fabstar",
+        "fabwash",
         "gatech01",
         "grnet01",
         "isi01",
