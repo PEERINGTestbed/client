@@ -56,17 +56,40 @@ isolating applications in their own network namespace or with a Linux virtual br
 
 By default, the namespace or bridge is called `pappX`, where X is an ID to identify the namespace.  Users that need multiple applications will need to set a different ID to each application.  By default, the application's egress traffic will be routed using table 20000, which is populated by BIRD.  An option allows the user to choose a specific upstream to route egress traffic out of (`-u`).  When deleting an application (`-d`), pass all the other parameters identically to when the application was created.
 
-### Troubleshooting
+## Start using your PEERING client
 
-In case sending traffic out of the namespace does not work, here are a list of things to check:
+Once your client is configured you should be able to run experiments.  Here are some steps to get you started:
 
-* Check prefix propagation on Looking Glasses. AT&T and HE have telnet-accessible LGs: `route-server.ip.att.net` and `route-views.he.net`
-* Check that PEERING OpenVPN tunnels and BGP sessions are up; announce a prefix and check reachability from the host.
-* Check that IP forwarding is enabled (e.g., run `sysctl -w net.ipv4.ip_forward=1`).
-* Check that the `FORWARD` chain in `iptables` is set to `ACCEPT`, and change it if needed (`iptables -P FORWARD ACCEPT`).
-* Check that the DNS resolver replies to requests from PEERING space.
+- `cd` into the client directory
 
-> The "unreachable" printed by BIRD when printing exported routes is unrelated to prefix propagation. It just means that BIRD itself doesn't know the route to your prefix, which is fine as the destination is the host itself and no further routing is necessary.
+- Use the `./peering` script to establish an OpenVPN connection to a PEERING router, e.g., `./peering openvpn up <mux>`.
+
+- Use the `./peering` script to establish a BGP session for exchanging routes with the router, e.g., `./peering bgp start`.
+
+    > Warning: When using IPv6, you need to edit the `client/bird6/bird6.conf` file and set a valid router ID (search for the line starting with `router id`) and use a unique IP address (e.g., one allocated to your experiment)
+
+Read the output of `./peering prefix` to find out how to make and control announcements.  For example, to announce your prefix out of all PEERING routers you are connected to, use `./peering prefix announce <prefix>`.
+
+You can check that your prefix is propagating by using Looking Glass servers from multiple providers:
+
+- [Spring](https://www.sprint.net/tools/looking-glass)
+- [NTT](https://www.gin.ntt.net/looking-glass-landing/)
+- [Level3/Lumen](https://lookingglass.centurylink.com/)
+
+> Troubleshooting: If the  prefix does not seem to be propagating, check that the OpenVPN tunnel is up, that the BGP session is established, and that your client is exporting the prefix to the desired router:
+>
+> ```bash
+> ./peering openvpn status
+> ./peering bgp status
+> ./peering bgp adv <router>
+> ```
+
+To shut everything up, stop the BGP server and OpenVPN tunnels:
+
+```bash
+./peering bgp stop
+./peering openvpn down all
+```
 
 ## Guidelines
 
