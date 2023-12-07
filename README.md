@@ -56,6 +56,18 @@ isolating applications in their own network namespace or with a Linux virtual br
 
 By default, the namespace or bridge is called `pappX`, where X is an ID to identify the namespace.  Users that need multiple applications will need to set a different ID to each application.  By default, the application's egress traffic will be routed using table 20000, which is populated by BIRD.  An option allows the user to choose a specific upstream to route egress traffic out of (`-u`).  When deleting an application (`-d`), pass all the other parameters identically to when the application was created.
 
+### Troubleshooting
+
+In case sending traffic out of the namespace does not work, here are a list of things to check:
+
+* Check prefix propagation on Looking Glasses. AT&T and HE have telnet-accessible LGs: `route-server.ip.att.net` and `route-views.he.net`
+* Check that PEERING OpenVPN tunnels and BGP sessions are up; announce a prefix and check reachability from the host.
+* Check that IP forwarding is enabled (e.g., run `sysctl -w net.ipv4.ip_forward=1`).
+* Check that the `FORWARD` chain in `iptables` is set to `ACCEPT`, and change it if needed (`iptables -P FORWARD ACCEPT`).
+* Check that the DNS resolver replies to requests from PEERING space.
+
+> The "unreachable" printed by BIRD when printing exported routes is unrelated to prefix propagation. It just means that BIRD itself doesn't know the route to your prefix, which is fine as the destination is the host itself and no further routing is necessary.
+
 ## Start using your PEERING client
 
 Once your client is configured you should be able to run experiments.  Here are some steps to get you started:
