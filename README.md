@@ -45,29 +45,6 @@ When checking the `status` of BGP connections, note that sessions in the "Idle" 
 
 Run `./peering prefix` to get a description of command-line parameters available to control prefix announcements.  The scripts supports prepending, changing the origin AS, poisoning an AS, and attaching communities.  Note that BGP poisoning and communities require special capabilities that must be assigned to your account by PEERING staff before you can use them.
 
-## Running an application behind PEERING
-
-The `app` module configures a network namespace with a single
-interface, and routes the network namespace through PEERING OpenVPN
-tunnels.  Run `./peering app` for a list of available parameters.
-
-Each application operates on a PEERING prefix (either v4 or v6).  We support
-isolating applications in their own network namespace or with a Linux virtual bridge.  The virtual bridge approach is useful to run Docker containers attached to the bridge.
-
-By default, the namespace or bridge is called `pappX`, where X is an ID to identify the namespace.  Users that need multiple applications will need to set a different ID to each application.  By default, the application's egress traffic will be routed using table 20000, which is populated by BIRD.  An option allows the user to choose a specific upstream to route egress traffic out of (`-u`).  When deleting an application (`-d`), pass all the other parameters identically to when the application was created.
-
-### Troubleshooting
-
-In case sending traffic out of the namespace does not work, here are a list of things to check:
-
-* Check prefix propagation on Looking Glasses. AT&T and HE have telnet-accessible LGs: `route-server.ip.att.net` and `route-views.he.net`
-* Check that PEERING OpenVPN tunnels and BGP sessions are up; announce a prefix and check reachability from the host.
-* Check that IP forwarding is enabled (e.g., run `sysctl -w net.ipv4.ip_forward=1`).
-* Check that the `FORWARD` chain in `iptables` is set to `ACCEPT`, and change it if needed (`iptables -P FORWARD ACCEPT`).
-* Check that the DNS resolver replies to requests from PEERING space.
-
-> The "unreachable" printed by BIRD when printing exported routes is unrelated to prefix propagation. It just means that BIRD itself doesn't know the route to your prefix, which is fine as the destination is the host itself and no further routing is necessary.
-
 ## Start using your PEERING client
 
 Once your client is configured you should be able to run experiments.  Here are some steps to get you started:
@@ -79,6 +56,8 @@ Once your client is configured you should be able to run experiments.  Here are 
 - Use the `./peering` script to establish a BGP session for exchanging routes with the router, e.g., `./peering bgp start`.
 
     > Warning: When using IPv6, you need to edit the `client/bird6/bird6.conf` file and set a valid router ID (search for the line starting with `router id`) and use a unique IP address (e.g., one allocated to your experiment)
+    >
+    > Warning: The BIRD configuration has BGP sessions configured with *all* PEERING muxes. You can control which sessions get established by bringing the OpenVPN tunnels up or down. However, the BIRD configuration also imports *all* routes received from the muxes. If you establish many sessions and import all routes, RAM utilization *will* be high. Start slow and provision accordingly.
 
 Read the output of `./peering prefix` to find out how to make and control announcements.  For example, to announce your prefix out of all PEERING routers you are connected to, use `./peering prefix announce <prefix>`.
 
@@ -114,6 +93,29 @@ Follow these guidelines when using your PEERING client:
 * Do not change announcements more than once every 10 minutes.  For best results, prefer to leave announcements up for 90 minutes to avoid route-flap dampening.
 
 * Be conservative.  Routers are often running close to their limits and our first priority is to not disrupt Internet operation.  In particular, do not announce AS-paths with more than 5 AS-hops, do not announce paths containing AS-sets with more than 5 ASes, and do not announce paths with more than 5 attached communities.
+
+## Running an application behind PEERING
+
+The `app` module configures a network namespace with a single
+interface, and routes the network namespace through PEERING OpenVPN
+tunnels.  Run `./peering app` for a list of available parameters.
+
+Each application operates on a PEERING prefix (either v4 or v6).  We support
+isolating applications in their own network namespace or with a Linux virtual bridge.  The virtual bridge approach is useful to run Docker containers attached to the bridge.
+
+By default, the namespace or bridge is called `pappX`, where X is an ID to identify the namespace.  Users that need multiple applications will need to set a different ID to each application.  By default, the application's egress traffic will be routed using table 20000, which is populated by BIRD.  An option allows the user to choose a specific upstream to route egress traffic out of (`-u`).  When deleting an application (`-d`), pass all the other parameters identically to when the application was created.
+
+### Troubleshooting
+
+In case sending traffic out of the namespace does not work, here are a list of things to check:
+
+* Check prefix propagation on Looking Glasses. AT&T and HE have telnet-accessible LGs: `route-server.ip.att.net` and `route-views.he.net`
+* Check that PEERING OpenVPN tunnels and BGP sessions are up; announce a prefix and check reachability from the host.
+* Check that IP forwarding is enabled (e.g., run `sysctl -w net.ipv4.ip_forward=1`).
+* Check that the `FORWARD` chain in `iptables` is set to `ACCEPT`, and change it if needed (`iptables -P FORWARD ACCEPT`).
+* Check that the DNS resolver replies to requests from PEERING space.
+
+> The "unreachable" printed by BIRD when printing exported routes is unrelated to prefix propagation. It just means that BIRD itself doesn't know the route to your prefix, which is fine as the destination is the host itself and no further routing is necessary.
 
 ## Running announcements via Web
 
