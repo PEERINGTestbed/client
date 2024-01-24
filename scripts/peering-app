@@ -129,11 +129,15 @@ function create_app_ns {
     echo "Configuring eth0 on namespace $nsname"
     ip link set dev ${nsname}ns netns ${nsname}
     ip netns exec $nsname ip link set dev ${nsname}ns name eth0
+    ip netns exec $nsname ip link set dev eth0 up
+    ip netns exec $nsname ip link set dev lo up
     ip netns exec $nsname ip addr add "$appip/$pfxlen" dev eth0
     ip netns exec $nsname ip route add default via "${hostip%%/*}"
 
     ip link set dev ${nsname}h up
-    ip netns exec $nsname ip link set dev eth0 up
+
+    # Enable ip forwarding
+    sysctl net.ipv4.ip_forward=1
 }
 
 function delete_app_ns {
@@ -183,7 +187,7 @@ function setup_source_routing {
         ip $minus6 route flush table $table || true
         ip $minus6 route add default via $gwip dev "$tapdev" table $table
         ip $minus6 rule add from "$appip" table $table pref $table || true
-        ip $minus6 rule add iif $devname table $table pref $table || true
+        ip $minus6 rule add iif ${devname}h table $table pref $((table+1)) || true
     fi
 }
 
@@ -194,6 +198,7 @@ function teardown_source_routing {
     ip $minus6 route flush table $table &> /dev/null || true
     while [[ $(( nrules-- )) -gt 0 ]] ; do
         ip $minus6 rule del pref $table
+        ip $minus6 rule del pref $((table+1))
     done
 }
 
@@ -204,7 +209,7 @@ if [[ $nsname != invalid ]] ; then
         teardown_source_routing
     else
         [[ ${pfx2id[$fprefix]:-err} != err ]] || die "Prefix $fprefix not in DB"
-        create_app_docker
+        create_app_ns
         setup_source_routing
     fi
 elif [[ $brname != invalid ]] ; then
