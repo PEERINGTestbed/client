@@ -9,6 +9,7 @@ import os
 import pathlib
 import subprocess
 import sys
+from typing import Optional
 
 import dataclasses_json
 import jinja2
@@ -26,6 +27,49 @@ IPNetwork = ipaddress.IPv4Network  # | ipaddress.IPv6Network
 MuxName = str
 # MuxName should be upgraded to a enum.StrEnum when Bookworm and Ubuntu
 # 24.04LTS come out with Python 3.11
+
+MUXES = [
+    "amsterdam01",
+    "clemson01",
+    "gatech01",
+    "grnet01",
+    "isi01",
+    "neu01",
+    "saopaulo01",
+    "seattle01",
+    "ufmg01",
+    "utah01",
+    "uw01",
+    "vtramsterdam",
+    "vtratlanta",
+    "vtrbangalore",
+    "vtrchicago",
+    "vtrdallas",
+    "vtrdelhi",
+    "vtrfrankfurt",
+    "vtrjohannesburg",
+    "vtrlondon",
+    "vtrlosangelas",
+    "vtrmadrid",
+    "vtrmelbourne",
+    "vtrmexico",
+    "vtrmiami",
+    "vtrmumbai",
+    "vtrnewyork",
+    "vtrosaka",
+    "vtrparis",
+    "vtrsaopaulo",
+    "vtrseattle",
+    "vtrseoul",
+    "vtrsilicon",
+    "vtrsingapore",
+    "vtrstockholm",
+    "vtrsydney",
+    "vtrtokyo",
+    "vtrtoronto",
+    "vtrwarsaw",
+    "wisc01",
+]
 
 
 @dataclasses_json.dataclass_json
@@ -108,7 +152,11 @@ class AnnouncementController:
                 self.announce(prefix, announcement)
         self.reload_config()
 
-    def withdraw(self, prefix: str, mux: MuxName) -> None:
+    def withdraw(self, prefix: str, mux: Optional[MuxName] = None) -> None:
+        if mux is None:
+            for emux in MUXES:
+                self.withdraw(prefix, emux)
+            return
         try:
             os.unlink(self.__config_file(prefix, mux))
         except FileNotFoundError:
