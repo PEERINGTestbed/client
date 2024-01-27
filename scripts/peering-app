@@ -71,7 +71,6 @@ d)
     ;;
 h|*)
     usage
-    exit 0
     ;;
 esac
 done
@@ -176,6 +175,7 @@ function delete_app_docker {
 function setup_source_routing {
     if [[ $upstream == default ]] ; then
         ip rule add from "$appip" table "$kernel_table" pref $table
+        ip rule add from "$hostip" table "$kernel_table" pref $table
         ip rule add iif $devname table "$kernel_table" pref $table
     else
         local tapdev=${mux2dev[$upstream]}
@@ -186,10 +186,11 @@ function setup_source_routing {
         else
             gwip=100.$((64 + devid)).128.1
         fi
-        ip $minus6 route flush table $table || true
-        ip $minus6 route add default via $gwip dev "$tapdev" table $table
+        ip $minus6 route flush table $table &> /dev/null || true
+        ip $minus6 route add default via "$gwip" dev "$tapdev" table $table
         ip $minus6 rule add from "$appip" table $table pref $table || true
-        ip $minus6 rule add iif ${hostdevname} table $table pref $table || true
+        ip $minus6 rule add from "$hostip" table $table pref $table || true
+        ip $minus6 rule add iif "$hostdevname" table $table pref $table || true
     fi
 }
 
