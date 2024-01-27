@@ -50,6 +50,16 @@ class UpdateSet:
     prefix2update: dict[str, Update]
 
 
+class Vultr:
+    @staticmethod
+    def communities_do_not_announce(upstreams: list[int]) -> list[tuple[int, int]]:
+        return [(64600, asn) for asn in upstreams]
+
+    @staticmethod
+    def communities_announce_to_upstreams(upstreams: list[int]) -> list[tuple[int, int]]:
+        return [(20473, 6000)] + [(64699, asn) for asn in upstreams]
+
+
 class AnnouncementController:
     def __init__(
         self,
