@@ -53,12 +53,14 @@ n)
     [[ $id -ne 0 ]] || die "Please set -i before -n or -b"
     nsname=papp$id
     devname=papp$id
+    hostdevname=${devname}h
     ;;
 b)
     [[ $nsname == invalid ]] || die "Cannot have -b and -n together"
     [[ $id -ne 0 ]] || die "Please set -i before -n or -b"
     brname=pbr$id
     devname=pbr$id
+    hostdevname=$devname
     ;;
 u)
     upstream="$OPTARG"
@@ -187,7 +189,7 @@ function setup_source_routing {
         ip $minus6 route flush table $table || true
         ip $minus6 route add default via $gwip dev "$tapdev" table $table
         ip $minus6 rule add from "$appip" table $table pref $table || true
-        ip $minus6 rule add iif ${devname}h table $table pref $((table+1)) || true
+        ip $minus6 rule add iif ${hostdevname} table $table pref $table || true
     fi
 }
 
