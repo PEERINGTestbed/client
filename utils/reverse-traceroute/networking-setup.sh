@@ -21,6 +21,7 @@ mux2id=([amsterdam01]=5
         [ufms01]=18
         [utah01]=17
         [wisc01]=11
+        [sbu01]=15
     )
         # [uw01]=10
 
