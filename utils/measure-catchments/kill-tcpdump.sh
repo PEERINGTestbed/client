@@ -12,8 +12,8 @@ HELP
 
 function die {
     msg=$1
-    status=$2
-    echo $msg
+    status=$(( $2 ))
+    echo "$msg"
     exit $status
 }
 
@@ -37,5 +37,5 @@ if [[ ! -s $pidfile ]] ; then
 fi
 
 while read -r pid ; do
-    kill $pid
-done < $pidfile
+    kill $(( pid ))
+done < "$pidfile"
