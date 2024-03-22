@@ -1,0 +1,6 @@
+dataclasses-json
+Jinja2==3.1.2
+jsonschema
+requests
+pyasn
+requests
