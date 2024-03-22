@@ -3,9 +3,8 @@ import parsers.util as util
 
 SUPPORTED = set(["BGP"])
 HEADER_LINE_FIELDS = list(["name", "proto", "table", "state", "since", "info"])
-SUMMARY_RE = r"^(?P<name>\w+)\s+(?P<proto>\w+)\s+(?P<table>\w+)\s+(?P<state>\w+)\s+(?P<since>[0-9:-]+)\s*(?P<info>.*)$"
-DETAILS_RE = r"^\s\s(?P<desc>[^:]+):(?P<data>.+)$"
-BGP_DETAILS_RE = r"^\s\s\s\s(?P<desc>[^:]+):(?P<data>.+)$"
+SUMMARY_RE = r"^(?P<name>\w+)\s+(?P<proto>\w+)\s+(?P<table>\S+)\s+(?P<state>\w+)\s+(?P<since>[0-9:-]+)\s*(?P<info>.*)$"
+DETAILS_RE = r"^\s+(?P<desc>[^:]+):(?P<data>.+)$"
 
 
 def parse_proto_routes(reader):
@@ -71,7 +70,6 @@ BGP_DETAILS_PARSERS = {
     "Neighbor address": util.parse_desc_colon_str,
     "Neighbor AS": util.parse_desc_colon_int,
     "Neighbor ID": util.parse_desc_colon_str,
-    "Neighbor caps": util.parse_desc_colon_str,
     "Session": util.parse_desc_colon_str,
     "Source address": util.parse_desc_colon_str,
     "Hold timer": util.parse_desc_colon_str,

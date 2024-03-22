@@ -11,6 +11,7 @@ VIA_RE = r"^\s+via (?P<via>\S+) on (?P<iface>\S+)$"
 DETAILS_RE = r"^\s+(?P<desc>[^:]+):(?P<data>.+)$"
 
 __DETAILS_PARSERS = {
+    "BGP.as_path": util.parse_desc_int_list,
     "BGP.med": util.parse_desc_colon_int,
     "BGP.local_pref": util.parse_desc_colon_int,
 }

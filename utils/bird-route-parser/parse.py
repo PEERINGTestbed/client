@@ -32,7 +32,9 @@ class CachingBufferedLineReader:
 
 
 def show_protocols(reader, outfd):
-    header = reader.readline()
+    header = reader.readline().lower()
+    if header.startswith("bird") and header.endswith("ready.\n"):
+        header = reader.readline().lower()
     assert header.split() == proto.HEADER_LINE_FIELDS
     results = list()
     line = reader.readline()
@@ -42,14 +44,17 @@ def show_protocols(reader, outfd):
             logging.debug("parse_proto: no match [%s]", line)
             line = reader.readline()
             continue
-        line = reader.readline()
         if m.group("proto") not in proto.SUPPORTED:
             logging.debug("parse_proto: %s not supported", m.group("proto"))
+            line = reader.readline()
             continue
+        logging.debug("parsing [%s]", line)
         result = m.groupdict()
-        v = util.parse_desc_lines(reader, proto.DETAILS_RE, proto.DETAILS_PARSERS)
-        result["details"] = v
+        result = dict((k, v.strip()) for k, v in result.items())
+        v = util.parse_by_indentation(reader)
+        result.update(v)
         results.append(result)
+        line = reader.readline()
     json.dump(results, outfd, indent=2)
     return results
 
