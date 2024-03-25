@@ -83,7 +83,7 @@ def show_route(reader, outfd):
         rt["attributes"] = v
         line = reader.readline()
         routes.append(rt)
-    json.dump(routes, outfd)
+    json.dump(routes, outfd, indent=2)
     return routes
 
 

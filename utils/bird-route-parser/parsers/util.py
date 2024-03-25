@@ -16,6 +16,9 @@ def parse_desc_int_list(reader):
     REGEX = r"^\s+(?P<desc>[^:]+):\s+(?P<data>.+)$"
     line = reader.readline()
     m = re.match(REGEX, line)
+    if "{" in m.group("data"):
+        # Ignore AS-paths with AS-sets
+        return normalize_desc(m.group("desc")), None
     data = [int(x) for x in m.group("data").split()]
     return normalize_desc(m.group("desc")), data
 
