@@ -64,6 +64,11 @@ fi
 test $# -ge 1 || usage
 
 if [ -S "$bird_sock" ] ; then
+    # check that fuser is on $PATH
+    if ! which fuser > /dev/null ; then
+        echo "Command fuser not found, cannot check BIRD control socket"
+        exit 1
+    fi
     if ! fuser "$bird_sock" > /dev/null ; then
         rm -f "$bird_sock"
         echo "Deleted stale BIRD control socket"
