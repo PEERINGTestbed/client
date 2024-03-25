@@ -82,6 +82,7 @@
     "peeringMux": {
       "type": "string",
       "enum": [
+        "all",
         "amsterdam01",
         "clemson01",
         "fabstar",
