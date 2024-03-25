@@ -7,6 +7,7 @@ import json
 import logging
 import os
 import pathlib
+import re
 import subprocess
 import sys
 from typing import Optional
@@ -17,12 +18,17 @@ import jsonschema
 import requests
 
 
-DEFAULT_BIRD_CFG_DIR = pathlib.Path("configs/bird/")
-DEFAULT_BIRD4_SOCK_PATH = pathlib.Path("var/bird.ctl")
-DEFAULT_BIRD6_SOCK_PATH = pathlib.Path("var/bird6.ctl")
-DEFAULT_ANNOUNCEMENT_SCHEMA = pathlib.Path("configs/announcement_schema.json")
+AUTO_BASE_DIR = pathlib.Path(__file__).readlink().absolute().parent
 
+DEFAULT_BIRD_CFG_DIR = pathlib.Path(AUTO_BASE_DIR, "configs/bird/")
+DEFAULT_BIRD4_SOCK_PATH = pathlib.Path(AUTO_BASE_DIR, "var/bird.ctl")
+DEFAULT_BIRD6_SOCK_PATH = pathlib.Path(AUTO_BASE_DIR, "var/bird6.ctl")
+DEFAULT_ANNOUNCEMENT_SCHEMA = pathlib.Path(
+    AUTO_BASE_DIR, "configs/announcement_schema.json"
+)
+DEFAULT_MUX2TAP_PATH = pathlib.Path(AUTO_BASE_DIR, "var/mux2dev.txt")
 
+IPAddress = ipaddress.IPv4Address | ipaddress.IPv6Address
 IPNetwork = ipaddress.IPv4Network  # | ipaddress.IPv6Network
 MuxName = str
 # MuxName should be upgraded to a enum.StrEnum when Bookworm and Ubuntu
@@ -104,7 +110,9 @@ class Vultr:
         return [(64600, asn) for asn in upstreams]
 
     @staticmethod
-    def communities_announce_to_upstreams(upstreams: list[int]) -> list[tuple[int, int]]:
+    def communities_announce_to_upstreams(
+        upstreams: list[int],
+    ) -> list[tuple[int, int]]:
         return [(20473, 6000)] + [(64699, asn) for asn in upstreams]
 
 
@@ -113,12 +121,23 @@ class AnnouncementController:
         self,
         bird_cfg_dir: pathlib.Path = DEFAULT_BIRD_CFG_DIR,
         bird4_sock: pathlib.Path = DEFAULT_BIRD4_SOCK_PATH,
+        bird6_sock: pathlib.Path = DEFAULT_BIRD6_SOCK_PATH,
         schema_file: pathlib.Path = DEFAULT_ANNOUNCEMENT_SCHEMA,
+        mux2tap_file: pathlib.Path = DEFAULT_MUX2TAP_PATH,
     ) -> None:
+        assert os.path.exists(bird_cfg_dir), str(bird_cfg_dir)
+        self.bird_cfg_dir = bird_cfg_dir
+        assert os.path.exists(bird4_sock) or os.path.exists(bird6_sock)
+        self.bird4_sock = bird4_sock
+        self.bird6_sock = bird6_sock
         with open(schema_file, encoding="utf8") as fd:
             self.schema = json.load(fd)
-        self.bird_cfg_dir = bird_cfg_dir
-        self.bird_sock = bird4_sock
+        self.mux2id: dict[str, int] = {}
+        with open(mux2tap_file, encoding="utf8") as fd:
+            for line in fd:
+                mux, tapdev = line.strip().split()
+                assert tapdev.startswith("tap")
+                self.mux2id[mux] = int(tapdev.removeprefix("tap"))
         self.config_template = self.__load_config_template()
         self.__create_routes()
 
@@ -157,7 +176,7 @@ class AnnouncementController:
         self.reload_config()
 
     def withdraw(self, prefix: str, mux: Optional[MuxName] = None) -> None:
-        if mux is None:
+        if mux is None or mux == "all":
             for emux in MUXES:
                 self.withdraw(prefix, emux)
             return
@@ -173,7 +192,7 @@ class AnnouncementController:
                 fd.write(data)
 
     def reload_config(self) -> None:
-        cmd = f"birdc -s {self.bird_sock}"
+        cmd = f"birdc -s {self.bird4_sock}"
         proc = subprocess.Popen(
             cmd.split(),
             stdin=subprocess.PIPE,
@@ -186,6 +205,57 @@ class AnnouncementController:
             logging.warning("BIRD reconfigure exited with status %d", r)
             logging.warning("%s", _stdout)
             logging.warning("%s", _stderr)
+            raise RuntimeError("Reconfiguring BIRD failed")
+
+    def set_egress(self, prio: int, srcip: str | IPAddress, mux: str, peerid: int | None):
+        assert ipaddress.ip_address(srcip)
+        muxid = self.mux2id[mux]
+        if peerid is None:
+            gateway = f"100.{64+muxid}.128.1"
+        else:
+            gateway = f"100.{64+muxid}.{peerid//256}.{peerid % 256}"
+
+        cmd = f"ip rule add from {srcip} lookup {prio} prio {prio}"
+        _run_check_log(cmd, True)
+
+        cmd = f"ip route flush table {prio}"
+        _run_check_log(cmd, False)
+
+        cmd = f"ip route add default via {gateway} table {prio}"
+        _run_check_log(cmd, True)
+
+    def unset_egress(self, prio: int):
+        cmd = f"ip route flush table {prio}"
+        _run_check_log(cmd, False)
+        try:
+            cmd = f"ip rule del prio {prio}"
+            while True:
+                # Remove rules until none are left and CalledProcessError is raised
+                _run_check_log(cmd, True)
+        except subprocess.CalledProcessError:
+            pass
+
+
+PROTOCOL_REGEX = re.compile(r"up(?P<peerid>\d+)_(?P<asn>\d+)")
+
+
+def protocol_to_peerid_asn(proto: str) -> tuple[int, int]:
+    m = PROTOCOL_REGEX.match(proto)
+    if not m:
+        raise ValueError(f"Invalid protocol name {proto}")
+    peerid = int(m.group("peerid"))
+    asn = int(m.group("asn"))
+    return (peerid, asn)
+
+
+def _run_check_log(cmd: str, check: bool):
+    try:
+        logging.info("running %s", cmd)
+        subprocess.run(cmd.split(), capture_output=True, check=check)
+    except subprocess.CalledProcessError as cpe:
+        logging.error("stdout: %s", cpe.stdout)
+        logging.error("stderr: %s", cpe.stderr)
+        raise
 
 
 class ExperimentController:
