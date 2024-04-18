@@ -71,12 +71,16 @@ down)
     mux=$2
     if [[ "$mux" = all ]] ; then
         for cmux in "${!mux2dev[@]}" ; do
+            dev=${mux2dev[$cmux]}
             mux_status_check "$cmux"
             if [[ $mstat =~ ^down$ ]] ; then
+                if ip link show dev "$dev" &> /dev/null ; then
+                    die "no control socket for $cmux but $dev exists, aborting"
+                fi
                 echo "tunnel $cmux already down"
                 continue
             fi
-            dev=${mux2dev[$cmux]}
+            echo "shutting down tunnel to $mux ($dev)"
             echo "signal SIGTERM" | socat - "UNIX:$varrun/$cmux.sock" > /dev/null
             rm -f "$varrun/$cmux.pid"
             rm -f "$varrun/$cmux.sock"
