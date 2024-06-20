@@ -1,0 +1,38 @@
+# Build the PEERING docker container with:
+# $ docker compose -f docker-compose.yml build peering
+
+# Run the container with:
+# $ docker compose -f docker-compose.yml run -ti peering
+
+# You may need to adjust the subnets below if other Docker subnets
+# overlap them. Try pruning old networks with:
+# $ docker network prune
+
+networks:
+  ip46net:
+    enable_ipv6: true
+    driver: bridge
+    ipam:
+      driver: default
+      config:
+        - subnet: "172.16.51.0/24"
+        - subnet: "2001:db8:1:51::/80"
+
+# The subnets above may need to be adjusted depending on your Docker
+# configuration. The configuration below has support for IPv6 with a v6
+# prefix that covers the subnet:
+# {
+#   "experimental": true,
+#   "fixed-cidr-v6": "2001:db8:1::/64",
+#   "ip6tables": true,
+#   "ipv6": true
+# }
+
+services:
+  peering:
+    build: ./docker
+    privileged: true  # needed so we get write access to /proc to enable IPv6
+    volumes:
+      - "./certs:/root/client/certs:ro"
+    networks:
+      ip46net:
