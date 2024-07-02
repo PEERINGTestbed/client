@@ -39,7 +39,7 @@ Run `./peering bgp` or `./peering bgp6` to get a description of command-line par
 
 When checking the `status` of BGP connections, note that sessions in the "Idle" state are waiting for their respective OpenVPN tunnels to come up.  This is not an issue.  Sessions in the Established state are up and exchanging routes.
 
-> Warning: The PEERING client imports all routes by default, so if you connect to many muxes, the routing tables will take up a lot of RAM. Suggestions include (1) establishing OpenVPN tunnels only with the muxes you plan to use or (2) changing the import filter in the BIRD configuration (change `import all` to `import none` in `configs/bird[6]/bird[6].conf`).
+> Warning: The PEERING client does not import any routes by default.  You should edit the import filters (`import none;` in the `configs/bird*/bird*.conf` files) to import routes.  However, consider that if you connect to many muxes, the routing tables will take up a lot of RAM.  Suggestions to keep memory utilization in check include (1) establishing OpenVPN tunnels only with the muxes you plan to use or selectively choose which muxes to import routes from.
 
 ## Controlling prefix announcements
 
