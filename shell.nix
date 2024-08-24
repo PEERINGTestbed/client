@@ -2,7 +2,7 @@
 
 pkgs.mkShell {
   buildInputs = with pkgs; [
-    bird
+    bird2
     openvpn
     socat
     psmisc
