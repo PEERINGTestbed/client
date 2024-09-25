@@ -79,6 +79,7 @@ MUXES = [
     "vtrtokyo",
     "vtrtoronto",
     "vtrwarsaw",
+    "vtrezri1",
 ]
 
 
