@@ -1,0 +1,47 @@
+version: "3.7"
+
+networks:
+  afrontend:
+    ipam:
+      driver: default
+      config:
+        - subnet: 172.16.50.0/24
+  bbackend:
+    driver: bridge
+    driver_opts:
+      com.docker.network.bridge.enable_ip_masquerade: "false"
+      com.docker.network.bridge.name: ctxlink
+    ipam:
+      driver: default
+      config:
+        - subnet: 172.16.51.0/24
+
+services:
+  base:
+    image: gcr.io/google-containers/pause:3.2
+    networks:
+      - afrontend
+
+  peering:
+    build: ./docker
+    networks:
+      afrontend:
+      bbackend:
+        aliases:
+          - gateway
+          - peering
+        ipv4_address: 172.16.51.254
+    volumes:
+      - "./certs:/root/client/certs:ro"
+    cap_add:
+      - NET_ADMIN
+
+  revtrvp:
+    build: ./docker
+    networks:
+      bbackend:
+        aliases:
+          - revtrvp
+        # ipv4_address: 172.16.51.1
+    cap_add:
+      - NET_ADMIN
