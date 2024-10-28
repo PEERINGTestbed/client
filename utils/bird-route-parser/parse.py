@@ -4,6 +4,7 @@ import argparse
 import gzip
 import json
 import logging
+import platform
 import sys
 import re
 import resource
@@ -125,7 +126,8 @@ def create_parser():
 
 
 def main():
-    resource.setrlimit(resource.RLIMIT_AS, (1 << 33, 1 << 33))
+    if platform.system() == "Linux":
+        resource.setrlimit(resource.RLIMIT_AS, (1 << 33, 1 << 33))
     resource.setrlimit(resource.RLIMIT_FSIZE, (1 << 35, 1 << 35))
     logging.basicConfig(format="%(message)s", level=logging.NOTSET)
 
