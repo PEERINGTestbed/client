@@ -9,9 +9,9 @@ import sys
 import re
 import resource
 
-import parsers.util as util
-import parsers.protocols as proto
-import parsers.route as route
+from .parsers import util
+from .parsers import protocols as proto
+from .parsers import route
 
 
 class CachingBufferedLineReader:
@@ -32,7 +32,9 @@ class CachingBufferedLineReader:
         self.read = False
 
 
-def show_protocols(reader, outfd):
+def show_protocols(inputfd, outfd):
+    reader = CachingBufferedLineReader(inputfd)
+
     header = reader.readline().lower()
     if header.startswith("bird") and header.endswith("ready.\n"):
         header = reader.readline().lower()
@@ -60,7 +62,9 @@ def show_protocols(reader, outfd):
     return results
 
 
-def show_route(reader, outfd):
+def show_route(inputfd, outfd):
+    reader = CachingBufferedLineReader(inputfd)
+
     routes = []
     network = None
     line = reader.readline()
@@ -140,14 +144,13 @@ def main():
         opts.fd = gzip.open(opts.infn, "rt", encoding="utf8")
     else:
         opts.fd = open(opts.infn, "r", encoding="utf8")
-    reader = CachingBufferedLineReader(opts.fd)
 
     if opts.outfn.endswith(".gz"):
         outfd = gzip.open(opts.outfn, "wt", encoding="utf8")
     else:
         outfd = open(opts.outfn, "wt", encoding="utf8")
 
-    opts.parser(reader, outfd)
+    opts.parser(opts.fd, outfd)
 
     opts.fd.close()
     outfd.close()

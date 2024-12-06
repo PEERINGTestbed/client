@@ -1,5 +1,6 @@
 import re
-import parsers.util as util
+
+from . import util
 
 SUPPORTED = set(["BGP"])
 HEADER_LINE_FIELDS = list(["name", "proto", "table", "state", "since", "info"])
