@@ -10,7 +10,7 @@ import pathlib
 import re
 import subprocess
 import sys
-from typing import Optional
+from typing import Optional, Union
 
 import dataclasses_json
 import jinja2
@@ -18,7 +18,7 @@ import jsonschema
 import requests
 
 
-AUTO_BASE_DIR = pathlib.Path(__file__).readlink().absolute().parent
+AUTO_BASE_DIR = pathlib.Path(__file__).absolute().parent
 
 DEFAULT_BIRD_CFG_DIR = pathlib.Path(AUTO_BASE_DIR, "configs/bird/")
 DEFAULT_BIRD4_SOCK_PATH = pathlib.Path(AUTO_BASE_DIR, "var/bird.ctl")
@@ -28,7 +28,7 @@ DEFAULT_ANNOUNCEMENT_SCHEMA = pathlib.Path(
 )
 DEFAULT_MUX2TAP_PATH = pathlib.Path(AUTO_BASE_DIR, "var/mux2dev.txt")
 
-IPAddress = ipaddress.IPv4Address | ipaddress.IPv6Address
+IPAddress = Union[ipaddress.IPv4Address, ipaddress.IPv6Address]
 IPNetwork = ipaddress.IPv4Network  # | ipaddress.IPv6Network
 MuxName = str
 # MuxName should be upgraded to a enum.StrEnum when Bookworm and Ubuntu
@@ -207,7 +207,7 @@ class AnnouncementController:
             logging.warning("%s", _stderr)
             raise RuntimeError("Reconfiguring BIRD failed")
 
-    def set_egress(self, prio: int, srcip: str | IPAddress, mux: str, peerid: int | None):
+    def set_egress(self, prio: int, srcip: Union[str, IPAddress], mux: str, peerid: Union[int , None]):
         assert ipaddress.ip_address(srcip)
         muxid = self.mux2id[mux]
         if peerid is None:
