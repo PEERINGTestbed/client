@@ -1,6 +1,6 @@
 from collections import defaultdict
 
-from . import util
+from parsers import util
 
 # from BIRD's nest/rt-table.c:
 # cli_printf(c, -1007, "%-18s %s [%s %s%s]%s%s", ia, via, a->src->proto->name,

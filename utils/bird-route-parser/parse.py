@@ -9,9 +9,9 @@ import sys
 import re
 import resource
 
-from .parsers import util
-from .parsers import protocols as proto
-from .parsers import route
+from parsers import util
+from parsers import protocols as proto
+from parsers import route
 
 
 class CachingBufferedLineReader:
