@@ -32,14 +32,13 @@ class CachingBufferedLineReader:
         self.read = False
 
 
-def show_protocols(inputfd, outfd):
+def show_protocols(inputfd, outfd) -> None:
     reader = CachingBufferedLineReader(inputfd)
 
     header = reader.readline().lower()
     if header.startswith("bird") and header.endswith("ready.\n"):
         header = reader.readline().lower()
     assert header.split() == proto.HEADER_LINE_FIELDS
-    results = list()
     line = reader.readline()
     while line:
         m = re.match(proto.SUMMARY_RE, line)
@@ -56,16 +55,14 @@ def show_protocols(inputfd, outfd):
         result = dict((k, v.strip()) for k, v in result.items())
         v = util.parse_by_indentation(reader)
         result.update(v)
-        results.append(result)
+        outfd.write(json.dumps(result))
+        outfd.write("\n")
         line = reader.readline()
-    json.dump(results, outfd, indent=2)
-    return results
 
 
-def show_route(inputfd, outfd):
+def show_route(inputfd, outfd) -> None:
     reader = CachingBufferedLineReader(inputfd)
 
-    routes = []
     network = None
     line = reader.readline()
     while line:
@@ -87,9 +84,8 @@ def show_route(inputfd, outfd):
         )
         rt["attributes"] = v
         line = reader.readline()
-        routes.append(rt)
-    json.dump(routes, outfd, indent=2)
-    return routes
+        outfd.write(json.dumps(rt))
+        outfd.write("\n")
 
 
 def create_parser():
@@ -109,7 +105,7 @@ def create_parser():
         metavar="FILE",
         required=True,
         type=str,
-        help="Output file (JSON)",
+        help="Output file (JSONL)",
     )
     cmd = cmdparser.add_mutually_exclusive_group(required=True)
     cmd.add_argument(
