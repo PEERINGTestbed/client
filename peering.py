@@ -108,8 +108,11 @@ IXP_SPECIAL_PEERS_V6: dict[MuxName, dict[int, list[int]]] = {
 class Announcement:
     muxes: list[MuxName]
     peer_ids: list[int] = dataclasses.field(default_factory=list)
+    """Peer IDs to announce to (communities will be computed automatically)"""
     communities: list[tuple[int, int]] = dataclasses.field(default_factory=list)
+    """List of communities to attach to announcement"""
     prepend: list[int] = dataclasses.field(default_factory=list)
+    """List of ASNs to prepend to AS-path"""
 
 
 @dataclasses_json.dataclass_json
@@ -117,6 +120,7 @@ class Announcement:
 class Update:
     withdraw: list[MuxName] = dataclasses.field(default_factory=list)
     announce: list[Announcement] = dataclasses.field(default_factory=list)
+    description: Optional[str] = None
 
 
 @dataclasses_json.dataclass_json
