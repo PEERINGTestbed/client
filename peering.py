@@ -2,6 +2,7 @@
 
 import argparse
 import dataclasses
+import enum
 import ipaddress
 import json
 import logging
@@ -17,7 +18,6 @@ import jinja2
 import jsonschema
 import requests
 
-
 AUTO_BASE_DIR = pathlib.Path(__file__).absolute().parent
 
 DEFAULT_BIRD_CFG_DIR = pathlib.Path(AUTO_BASE_DIR, "configs/bird/")
@@ -30,56 +30,77 @@ DEFAULT_MUX2TAP_PATH = pathlib.Path(AUTO_BASE_DIR, "var/mux2dev.txt")
 
 IPAddress = Union[ipaddress.IPv4Address, ipaddress.IPv6Address]
 IPNetwork = ipaddress.IPv4Network  # | ipaddress.IPv6Network
-MuxName = str
-# MuxName should be upgraded to a enum.StrEnum when Bookworm and Ubuntu
-# 24.04LTS come out with Python 3.11
 
-MUXES = [
-    "amsterdam01",
-    "clemson01",
-    # "gatech01",
-    "grnet01",
-    "isi01",
-    "neu01",
-    "saopaulo01",
-    "seattle01",
-    "ufmg01",
-    "utah01",
-    "uw01",
-    "wisc01",
-    "vtramsterdam",
-    "vtratlanta",
-    "vtrbangalore",
-    "vtrchicago",
-    "vtrdallas",
-    "vtrdelhi",
-    "vtrfrankfurt",
-    "vtrhonolulu",
-    "vtrjohannesburg",
-    "vtrlondon",
-    "vtrlosangelas",
-    "vtrmadrid",
-    "vtrmanchester",
-    "vtrmelbourne",
-    "vtrmexico",
-    "vtrmiami",
-    "vtrmumbai",
-    "vtrnewyork",
-    "vtrosaka",
-    "vtrparis",
-    "vtrsantiago",
-    "vtrsaopaulo",
-    "vtrseattle",
-    "vtrseoul",
-    "vtrsilicon",
-    "vtrsingapore",
-    "vtrstockholm",
-    "vtrsydney",
-    "vtrtelaviv",
-    "vtrtokyo",
-    "vtrtoronto",
-    "vtrwarsaw",
-]
+
+class MuxName(enum.StrEnum):
+    amsterdam01 = "amsterdam01"
+    clemson01 = "clemson01"
+    grnet01 = "grnet01"
+    isi01 = "isi01"
+    neu01 = "neu01"
+    saopaulo01 = "saopaulo01"
+    seattle01 = "seattle01"
+    ufmg01 = "ufmg01"
+    utah01 = "utah01"
+    uw01 = "uw01"
+    wisc01 = "wisc01"
+    vtramsterdam = "vtramsterdam"
+    vtratlanta = "vtratlanta"
+    vtrbangalore = "vtrbangalore"
+    vtrchicago = "vtrchicago"
+    vtrdallas = "vtrdallas"
+    vtrdelhi = "vtrdelhi"
+    vtrfrankfurt = "vtrfrankfurt"
+    vtrhonolulu = "vtrhonolulu"
+    vtrjohannesburg = "vtrjohannesburg"
+    vtrlondon = "vtrlondon"
+    vtrlosangelas = "vtrlosangelas"
+    vtrmadrid = "vtrmadrid"
+    vtrmanchester = "vtrmanchester"
+    vtrmelbourne = "vtrmelbourne"
+    vtrmexico = "vtrmexico"
+    vtrmiami = "vtrmiami"
+    vtrmumbai = "vtrmumbai"
+    vtrnewyork = "vtrnewyork"
+    vtrosaka = "vtrosaka"
+    vtrparis = "vtrparis"
+    vtrsantiago = "vtrsantiago"
+    vtrsaopaulo = "vtrsaopaulo"
+    vtrseattle = "vtrseattle"
+    vtrseoul = "vtrseoul"
+    vtrsilicon = "vtrsilicon"
+    vtrsingapore = "vtrsingapore"
+    vtrstockholm = "vtrstockholm"
+    vtrsydney = "vtrsydney"
+    vtrtelaviv = "vtrtelaviv"
+    vtrtokyo = "vtrtokyo"
+    vtrtoronto = "vtrtoronto"
+    vtrwarsaw = "vtrwarsaw"
+
+
+IXP_SPECIAL_PEERS_V4: dict[MuxName, dict[int, list[int]]] = {
+    MuxName.amsterdam01: {
+        6777: [27, 29],  # Route Servers
+        12859: [60, 61],  # Bit
+        8283: [52],  # Coloclue
+    },
+    MuxName.seattle01: {
+        33108: [1, 2],  # Route Servers
+        3130: [101, 592],  # RGNet
+    }
+}
+
+IXP_SPECIAL_PEERS_V6: dict[MuxName, dict[int, list[int]]] = {
+    MuxName.amsterdam01: {
+        6777: [71, 72],  # Route Servers
+        12859: [95, 96],  # Bit
+        8283: [94],  # Coloclue
+    },
+    MuxName.seattle01: {
+        33108: [5, 6],  # Route Servers
+        3130: [112, 593],  # RGNet
+    }
+}
 
 
 @dataclasses_json.dataclass_json
