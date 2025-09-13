@@ -141,6 +141,16 @@ class Vultr:
         return [(20473, 6000)] + [(64699, asn) for asn in upstreams]
 
 
+class PeeringCommunities:
+    @staticmethod
+    def do_not_announce(peer_id: int) -> tuple[int, int]:
+        return (47065, 1000+peer_id)
+
+    @staticmethod
+    def announce_to(peer_id: int) -> tuple[int, int]:
+        return (47065, peer_id)
+
+
 class AnnouncementController:
     def __init__(
         self,
