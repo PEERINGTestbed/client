@@ -6,7 +6,6 @@ import enum
 import ipaddress
 import json
 import logging
-import os
 import pathlib
 import re
 import subprocess
@@ -87,7 +86,7 @@ IXP_SPECIAL_PEERS_V4: dict[MuxName, dict[int, list[int]]] = {
     MuxName.seattle01: {
         33108: [1, 2],  # Route Servers
         3130: [101, 592],  # RGNet
-    }
+    },
 }
 
 IXP_SPECIAL_PEERS_V6: dict[MuxName, dict[int, list[int]]] = {
@@ -99,7 +98,7 @@ IXP_SPECIAL_PEERS_V6: dict[MuxName, dict[int, list[int]]] = {
     MuxName.seattle01: {
         33108: [5, 6],  # Route Servers
         3130: [112, 593],  # RGNet
-    }
+    },
 }
 
 
@@ -144,7 +143,7 @@ class Vultr:
 class PeeringCommunities:
     @staticmethod
     def do_not_announce(peer_id: int) -> tuple[int, int]:
-        return (47065, 1000+peer_id)
+        return (47065, 1000 + peer_id)
 
     @staticmethod
     def announce_to(peer_id: int) -> tuple[int, int]:
@@ -228,7 +227,7 @@ class AnnouncementController:
 
     def reload_config(self) -> None:
         cmd = f"birdc -s {self.bird4_sock}"
-        proc = subprocess.Popen(
+        proc = subprocess.Popen(  # noqa: S603
             cmd.split(),
             stdin=subprocess.PIPE,
             stdout=subprocess.PIPE,
@@ -238,17 +237,23 @@ class AnnouncementController:
         r = proc.wait()
         if r != 0:
             logging.warning("BIRD reconfigure exited with status %d", r)
-            logging.warning("%s", _stdout)
-            logging.warning("%s", _stderr)
+            logging.warning("%s", stdout)
+            logging.warning("%s", stderr)
             raise RuntimeError("Reconfiguring BIRD failed")
 
-    def set_egress(self, prio: int, srcip: Union[str, IPAddress], mux: str, peerid: Union[int , None]):
+    def set_egress(
+        self,
+        prio: int,
+        srcip: Union[str, IPAddress],
+        mux: str,
+        peerid: Union[int, None],
+    ) -> None:
         assert ipaddress.ip_address(srcip)
         muxid = self.mux2id[mux]
         if peerid is None:
-            gateway = f"100.{64+muxid}.128.1"
+            gateway = f"100.{64 + muxid}.128.1"
         else:
-            gateway = f"100.{64+muxid}.{peerid//256}.{peerid % 256}"
+            gateway = f"100.{64 + muxid}.{peerid // 256}.{peerid % 256}"
 
         cmd = f"ip rule add from {srcip} lookup {prio} prio {prio}"
         _run_check_log(cmd, True)
@@ -259,7 +264,7 @@ class AnnouncementController:
         cmd = f"ip route add default via {gateway} table {prio}"
         _run_check_log(cmd, True)
 
-    def unset_egress(self, prio: int):
+    def unset_egress(self, prio: int) -> None:
         cmd = f"ip route flush table {prio}"
         _run_check_log(cmd, False)
         try:
@@ -286,7 +291,7 @@ def protocol_to_peerid_asn(proto: str) -> tuple[int, int]:
 def _run_check_log(cmd: str, check: bool):
     try:
         logging.info("running %s", cmd)
-        subprocess.run(cmd.split(), capture_output=True, check=check)
+        subprocess.run(cmd.split(), capture_output=True, check=check)  # noqa: S603
     except subprocess.CalledProcessError as cpe:
         logging.error("stdout: %s", cpe.stdout)
         logging.error("stderr: %s", cpe.stderr)
