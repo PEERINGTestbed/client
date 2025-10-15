@@ -159,9 +159,9 @@ class AnnouncementController:
         schema_file: pathlib.Path = DEFAULT_ANNOUNCEMENT_SCHEMA,
         mux2tap_file: pathlib.Path = DEFAULT_MUX2TAP_PATH,
     ) -> None:
-        assert os.path.exists(bird_cfg_dir), str(bird_cfg_dir)
+        assert bird_cfg_dir.exists(), str(bird_cfg_dir)
         self.bird_cfg_dir = pathlib.Path(bird_cfg_dir)
-        assert os.path.exists(bird4_sock) or os.path.exists(bird6_sock)
+        assert bird4_sock.exists() or bird6_sock.exists()
         self.bird4_sock = bird4_sock
         self.bird6_sock = bird6_sock
         with open(schema_file, encoding="utf8") as fd:
@@ -176,8 +176,8 @@ class AnnouncementController:
         self.__create_routes()
 
     def __load_config_template(self) -> jinja2.Template:
-        path = os.path.join(self.bird_cfg_dir, "templates")
-        env = jinja2.Environment(loader=jinja2.FileSystemLoader(path))
+        path = self.bird_cfg_dir / "templates"
+        env = jinja2.Environment(loader=jinja2.FileSystemLoader(path), autoescape=True)
         return env.get_template("export_mux_pfx.jinja2")
 
     def __config_file(self, prefix: str, mux: MuxName) -> pathlib.Path:
@@ -188,10 +188,10 @@ class AnnouncementController:
         return self.bird_cfg_dir / "prefix-filters" / fn
 
     def __create_routes(self) -> None:
-        path = os.path.join(self.bird_cfg_dir, "route-announcements")
-        os.makedirs(path, exist_ok=True)
+        path = self.bird_cfg_dir / "route-announcements"
+        path.mkdir(parents=True, exist_ok=True)
         for pfx in self.schema["definitions"]["allocatedPrefix"]["enum"]:
-            fpath = os.path.join(path, pfx.replace("/", "-"))
+            fpath = path / pfx.replace("/", "-")
             fd = open(fpath, "w", encoding="utf8")
             fd.write(f"route {pfx} unreachable;\n")
             fd.close()
@@ -215,7 +215,7 @@ class AnnouncementController:
                 self.withdraw(prefix, emux)
             return
         try:
-            os.unlink(self.__config_file(prefix, mux))
+            self.__config_file(prefix, mux).unlink()
         except FileNotFoundError:
             pass
 
@@ -233,7 +233,7 @@ class AnnouncementController:
             stdout=subprocess.PIPE,
             stderr=subprocess.PIPE,
         )
-        _stdout, _stderr = proc.communicate(b"configure\n")
+        stdout, stderr = proc.communicate(b"configure\n")
         r = proc.wait()
         if r != 0:
             logging.warning("BIRD reconfigure exited with status %d", r)
@@ -271,7 +271,7 @@ class AnnouncementController:
             cmd = f"ip rule del prio {prio}"
             while True:
                 # Remove rules until none are left and CalledProcessError is raised
-                _run_check_log(cmd, True)
+                _run_check_log(cmd, True, False)
         except subprocess.CalledProcessError:
             pass
 
@@ -288,13 +288,14 @@ def protocol_to_peerid_asn(proto: str) -> tuple[int, int]:
     return (peerid, asn)
 
 
-def _run_check_log(cmd: str, check: bool):
+def _run_check_log(cmd: str, check: bool, log_errors: bool = True) -> None:
     try:
         logging.info("running %s", cmd)
         subprocess.run(cmd.split(), capture_output=True, check=check)  # noqa: S603
     except subprocess.CalledProcessError as cpe:
-        logging.error("stdout: %s", cpe.stdout)
-        logging.error("stderr: %s", cpe.stderr)
+        if log_errors:
+            logging.error("stdout: %s", cpe.stdout)
+            logging.error("stderr: %s", cpe.stderr)
         raise
 
 
