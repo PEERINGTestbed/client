@@ -61,7 +61,7 @@ class MuxName(enum.StrEnum):
     vtrmexico = "vtrmexico"
     vtrmiami = "vtrmiami"
     vtrmumbai = "vtrmumbai"
-    vtrnewyork = "vtrnewyork"
+    vtrnewjersey = "vtrnewjersey"
     vtrosaka = "vtrosaka"
     vtrparis = "vtrparis"
     vtrsantiago = "vtrsantiago"
@@ -212,7 +212,7 @@ class AnnouncementController:
 
     def withdraw(self, prefix: str, mux: Optional[MuxName] = None) -> None:
         if mux is None or mux == "all":
-            for emux in MUXES:
+            for emux in MuxName:
                 self.withdraw(prefix, emux)
             return
         try:
