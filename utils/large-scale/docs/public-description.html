@@ -1,0 +1,59 @@
+<!doctype html>
+<html>
+<head>
+<meta charset="utf-8">
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/github-markdown-css/4.0.0/github-markdown.min.css">
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/gh/highlightjs/cdn-release/build/styles/default.min.css">
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex/dist/katex.min.css">
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/markdown-it-texmath/css/texmath.min.css">
+<link rel="stylesheet" href="file:////home/cunha/.vscode-server/extensions/goessner.mdmath-2.7.4/themes/default/style.css">
+
+</head>
+<body class="markdown-body">
+<h1 dir="auto" id="peering-testbed-route-exploration-experiment">PEERING Testbed Route Exploration Experiment</h1>
+<p dir="auto">The following IPv4 prefixes are participating in a route exploration experiment run from the <a href="https://peering.ee.columbia.edu/">PEERING Testbed</a>:</p>
+<ul dir="auto">
+<li dir="auto">184.164.224.0/24</li>
+<li dir="auto">184.164.225.0/24</li>
+<li dir="auto">184.164.226.0/24</li>
+<li dir="auto">184.164.227.0/24</li>
+<li dir="auto">184.164.232.0/24</li>
+<li dir="auto">184.164.233.0/24</li>
+<li dir="auto">184.164.238.0/24</li>
+<li dir="auto">184.164.239.0/24</li>
+<li dir="auto">184.164.246.0/24</li>
+<li dir="auto">184.164.247.0/24</li>
+<li dir="auto">184.164.248.0/24</li>
+<li dir="auto">184.164.249.0/24</li>
+<li dir="auto">184.164.250.0/24</li>
+<li dir="auto">184.164.251.0/24</li>
+</ul>
+<p dir="auto">We perform a sequence of BGP announcements to discover alternate routes.  We start with an anycast announcement to discover the most-preferred routes to PEERING locations.  All subsequent announcements describe changes relative to that anycast announcement.</p>
+<p dir="auto">Phase 1 aims to identify the second-most-preferred route toward PEERING for every network on the Internet, and whether that choice is based on AS-path length or LocalPref. Each announcement is performed on top of the anycast baseline:</p>
+<ol dir="auto">
+<li dir="auto">Prepend from one PEERING site at a time.  Will identify the second most preferred route if the choice was based on path length.</li>
+<li dir="auto">Withdraw from one PEERING site at a time.  Will identify the second most preferred route.</li>
+<li dir="auto">Prepend to one Vultr provider at a time (at all sites).  Will discover the second most preferred route of remote networks routing to a Vultr provider if the choice was based on route length.</li>
+<li dir="auto">Withdraw from one Vultr provider at a time (at all sites).  Will discover the second most preferred routes of remote networks routing to a Vultr provider.</li>
+</ol>
+<p dir="auto">Phase 2 aims to identify the third-most-preferred route for every network on the Internet by withdrawing the two most-preferred routes:</p>
+<ol start="5" dir="auto">
+<li dir="auto">Withdraw from two PEERING sites at a time (all possible pairs).  Will identify the third most preferred route.</li>
+<li dir="auto">Withdraw from one Vultr provider and one non-Vultr PEERING site at a time (all possible pairs).</li>
+</ol>
+<p dir="auto">Phase 3 aims to identify pairwise preferences among PEERING sub-sites and Vultr providers for every network on the Internet. These experiments do not build on the anycast announcement; instead we announce to a pair of upstreams:</p>
+<ol start="7" dir="auto">
+<li dir="auto">Announce to every possible pair of PEERING sites, one pair at a time.</li>
+<li dir="auto">Announce to every possible pair consisting of one Vultr provider and one non-Vultr PEERING site, one pair at a time.</li>
+</ol>
+<p dir="auto">We keep each announcement up for 90 minutes to avoid route-flap dampening and to collect multiple RIPE Atlas traceroutes toward these prefixes. Each prefix makes 16 announcements per day. We use 14 IPv4 prefixes to reduce total experiment runtime. The total expected experiment runtime is about 6-8 weeks.</p>
+<p dir="auto">We issue traceroutes toward these prefixes from 4259 RIPE Atlas probes every 20 minutes.  We also issue ping measurements towards a hitlist of 410K responsive IP addresses based on ISI's hitlist at a rate of 5000pps. These measurements allow us to compute catchments.</p>
+<h2 dir="auto" id="expected-impact">Expected Impact</h2>
+<p dir="auto">Discovering alternate, less-preferred routes is a key mechanism for inferring AS routing preferences and, indirectly, routing policies. This is useful for research and operational tasks such as route modeling and troubleshooting.</p>
+<h2 dir="auto" id="public-dataset">Public Dataset</h2>
+<p dir="auto">We will make this dataset public to the networking research and operator communities.</p>
+<h2 dir="auto" id="contact">Contact</h2>
+<p dir="auto">Please forward inquiries or opt-out requests to team@testbed-domain.</p>
+
+</body>
+</html>
