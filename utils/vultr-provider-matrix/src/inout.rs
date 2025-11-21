@@ -1,36 +1,40 @@
 use std::collections::HashMap;
-use std::fs;
+use std::fs::OpenOptions;
 use std::path::{Path, PathBuf};
 
-use anyhow::{Context, Result};
+use anyhow::Context;
 
 use crate::routes::PeerType;
 use crate::{Args, FileResult, ProviderOutput};
 
-pub fn find_table_dump_files(directory: &Path) -> Result<Vec<PathBuf>, anyhow::Error> {
-    let mut files = Vec::new();
-    for entry in walkdir::WalkDir::new(directory) {
-        let entry = entry.context("Failed to read directory entry")?;
-        let path = entry.path();
-        if !path.is_file() {
-            continue;
-        }
-        if let Some(true) = path
-            .file_name()
-            .and_then(|n| n.to_str())
-            .map(|fname| fname.starts_with("vtr") && fname.ends_with(".table.jsonl.bz2"))
-        {
-            files.push(path.to_path_buf());
-        }
-    }
+pub fn find_table_dump_files(directory: &Path) -> anyhow::Result<Vec<PathBuf>> {
+    let files = walkdir::WalkDir::new(directory)
+        .into_iter()
+        .filter_map(|entry| entry.ok())
+        .filter(|entry| entry.file_type().is_file())
+        .filter_map(|entry| {
+            let path = entry.path();
+            let fname = path.file_name()?.to_str()?;
+            if fname.starts_with("vtr") && fname.ends_with(".table.jsonl.bz2") {
+                Some(path.to_path_buf())
+            } else {
+                None
+            }
+        })
+        .collect();
+
     Ok(files)
 }
 
 pub fn write_peers_json(args: &Args, results: &HashMap<String, FileResult>) -> anyhow::Result<()> {
-    let json =
-        serde_json::to_string_pretty(results).context("Failed to serialize results to JSON")?;
-    fs::write(&args.output, json)
-        .with_context(|| format!("Failed to write output file: {:?}", args.output))?;
+    let out_file = OpenOptions::new()
+        .create(true)
+        .truncate(true)
+        .write(true)
+        .open(&args.output)
+        .with_context(|| format!("Failed to open output file: {:?}", args.output))?;
+    serde_json::to_writer_pretty(&out_file, results)
+        .context("Failed to serialize results to JSON")?;
     Ok(())
 }
 
@@ -38,10 +42,9 @@ pub fn write_providers_json(
     args: &Args,
     results: &HashMap<String, FileResult>,
 ) -> anyhow::Result<()> {
-    if args.providers.is_none() {
+    let Some(provider_path) = &args.providers else {
         return Ok(());
-    }
-    let provider_path: &PathBuf = args.providers.as_ref().unwrap();
+    };
     let provider2sitecnt = count_sites_per_provider(results);
     let mut mux2peers = HashMap::new();
     for (mux_proto, file_result) in results {
@@ -77,10 +80,7 @@ pub fn write_providers_json(
     let mut peer2muxes: HashMap<u32, Vec<String>> = HashMap::new();
     for (mux, file_result) in &mux2peers {
         for asn in file_result.peers.keys() {
-            peer2muxes
-                .entry(*asn)
-                .or_default()
-                .push(mux.clone());
+            peer2muxes.entry(*asn).or_default().push(mux.clone());
         }
     }
 
@@ -89,10 +89,14 @@ pub fn write_providers_json(
         peer2muxes,
     };
 
-    let json = serde_json::to_string_pretty(&output)
+    let out_file = OpenOptions::new()
+        .create(true)
+        .truncate(true)
+        .write(true)
+        .open(provider_path)
+        .with_context(|| format!("Failed to open provider output file: {:?}", provider_path))?;
+    serde_json::to_writer_pretty(&out_file, &output)
         .context("Failed to serialize provider results to JSON")?;
-    fs::write(provider_path, json)
-        .with_context(|| format!("Failed to write provider output file: {:?}", provider_path))?;
     Ok(())
 }
 

@@ -2,9 +2,9 @@ use std::collections::BTreeSet;
 use std::fmt;
 
 use anyhow::Result;
-use std::sync::OnceLock;
 use regex::Regex;
-use serde::{de::Deserializer, Deserialize};
+use serde::{Deserialize, de::Deserializer};
+use std::sync::OnceLock;
 
 static COMMUNITY_REGEX: OnceLock<Regex> = OnceLock::new();
 static LARGE_COMMUNITY_REGEX: OnceLock<Regex> = OnceLock::new();
@@ -65,12 +65,10 @@ pub struct Attributes {
 
 impl Route {
     pub fn extract_vultr_neighbor(&self) -> Option<u32> {
-        const VULTR_ASN: u32 = 20473;
-
         self.attributes.bgp_as_path.as_ref().and_then(|as_path| {
             as_path
                 .iter()
-                .position(|&asn| asn == VULTR_ASN)
+                .position(|&asn| asn == crate::VULTR_ASN)
                 .and_then(|pos| as_path.get(pos + 1))
                 .copied()
         })
@@ -131,10 +129,9 @@ where
 
 impl PeerType {
     pub fn detect_from_communities(communities: &[(u32, u32)]) -> BTreeSet<PeerType> {
-        const VULTR_ASN: u32 = 20473;
         let mut peer_types: BTreeSet<PeerType> = communities
             .iter()
-            .filter(|&&(asn, _)| asn == VULTR_ASN)
+            .filter(|&&(asn, _)| asn == crate::VULTR_ASN)
             .map(|&(_, peertype)| peertype.into())
             .filter(|&pt| pt != PeerType::Unknown)
             .collect();
@@ -146,10 +143,9 @@ impl PeerType {
     }
 
     pub fn detect_from_large(large_communities: &[(u32, u32, u32)]) -> BTreeSet<(PeerType, u32)> {
-        const VULTR_ASN: u32 = 20473;
         let mut peer_data: BTreeSet<(PeerType, u32)> = large_communities
             .iter()
-            .filter(|&&(asn, _, _)| asn == VULTR_ASN)
+            .filter(|&&(asn, _, _)| asn == crate::VULTR_ASN)
             .map(|&(_, peertype, neighbor)| (peertype.into(), neighbor))
             .filter(|(pt, _)| *pt != PeerType::Unknown)
             .collect();

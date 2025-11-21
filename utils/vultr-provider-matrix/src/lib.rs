@@ -3,7 +3,7 @@ use std::fs::File;
 use std::io::{BufRead, BufReader};
 use std::path::{Path, PathBuf};
 
-use anyhow::{Context, Result};
+use anyhow::Context;
 use bzip2::read::BzDecoder;
 use log::{debug, info, warn};
 
@@ -14,7 +14,9 @@ pub mod routes;
 pub use checks::Check;
 pub use routes::{PeerType, Route};
 
-#[derive(serde::Serialize, Clone)]
+pub const VULTR_ASN: u32 = 20473;
+
+#[derive(serde::Serialize, Clone, Default)]
 pub struct PeerInfo {
     pub peer_types: BTreeSet<PeerType>,
     pub num_routes: usize,
@@ -72,7 +74,7 @@ pub fn get_mux_protocol(fpath: &Path) -> Option<String> {
     Some(basename.to_string())
 }
 
-pub fn process_file(fpath: &Path) -> Result<FileResult> {
+pub fn process_file(fpath: &Path) -> anyhow::Result<FileResult> {
     let file = File::open(fpath).with_context(|| format!("Failed to open file: {:?}", fpath))?;
     let decoder = BzDecoder::new(file);
     let reader = BufReader::new(decoder);
@@ -103,7 +105,7 @@ pub fn process_file(fpath: &Path) -> Result<FileResult> {
         };
 
         if ip_version == 0 {
-            ip_version = if route.net.contains(":") { 6 } else { 4 };
+            ip_version = if route.net.contains(':') { 6 } else { 4 };
         }
 
         total_routes += 1;
@@ -120,11 +122,7 @@ pub fn process_file(fpath: &Path) -> Result<FileResult> {
             }
         };
 
-        let peer_info = asn2peerinfo.entry(neigh_aspath).or_insert(PeerInfo {
-            peer_types: BTreeSet::new(),
-            num_routes: 0,
-            failed_checks: HashMap::new(),
-        });
+        let peer_info = asn2peerinfo.entry(neigh_aspath).or_default();
         peer_info.num_routes += 1;
 
         let peertypes_comm = route.attributes.bgp_community.as_ref().map_or_else(
@@ -143,8 +141,8 @@ pub fn process_file(fpath: &Path) -> Result<FileResult> {
                 *peer_info
                     .failed_checks
                     .entry(check.to_string())
-                    .or_insert(0) += 1;
-                warn!("{:?} {}", fpath, check.message())
+                    .or_default() += 1;
+                debug!("{:?} {}", fpath, check.message())
             });
 
         peer_info.peer_types.extend(&peertypes_comm);
@@ -154,10 +152,8 @@ pub fn process_file(fpath: &Path) -> Result<FileResult> {
     }
 
     info!("Processed {} routes from {:?}", total_routes, fpath);
-    println!("Processed {} routes from {:?}", total_routes, fpath);
     for (asn, peer_info) in asn2peerinfo.iter_mut() {
         peer_info.peer_types.remove(&PeerType::Unknown);
-        println!("peer_types {:?}", peer_info.peer_types);
         if peer_info.peer_types.is_empty() {
             peer_info.peer_types.insert(PeerType::Unknown);
         } else if peer_info.peer_types.len() > 1 {
@@ -167,7 +163,6 @@ pub fn process_file(fpath: &Path) -> Result<FileResult> {
             *check2count.entry(key.clone()).or_insert(0) += 1;
             *peer_info.failed_checks.entry(key).or_insert(0) += 1;
         }
-        println!("{:?}", peer_info.failed_checks.keys());
     }
 
     Ok(FileResult {

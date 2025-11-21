@@ -55,8 +55,9 @@ impl Check {
     pub fn message(&self) -> String {
         match self {
             Check::RouteMissingNeighbor { linenum, as_path } => {
-                format!("Line {}: Route does not contain neighbor after Vultr (20473) in AS path ({:?})",
-                     linenum, as_path
+                format!(
+                    "Line {}: Route does not contain neighbor after Vultr (20473) in AS path ({:?})",
+                    linenum, as_path
                 )
             }
             Check::CustomerWithLargeCommunity { linenum } => {
@@ -71,7 +72,8 @@ impl Check {
                 peertypes_large,
                 as_path,
             } => {
-                format!("Line {}: Inconsisteny in neighbor ASN inference! Large community says AS{} is {:?}, but AS-path is {:?}",
+                format!(
+                    "Line {}: Inconsisteny in neighbor ASN inference! Large community says AS{} is {:?}, but AS-path is {:?}",
                     linenum, neigh_large, peertypes_large, as_path
                 )
             }
