@@ -148,7 +148,7 @@
             "type": "number"
           }
         },
-        "commnunities": {
+        "communities": {
           "type": "array",
           "uniqueItems": true,
           "items": {
