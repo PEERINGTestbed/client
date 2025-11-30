@@ -134,6 +134,10 @@ class Vultr:
         return [(64600, asn) for asn in upstreams]
 
     @staticmethod
+    def communities_prepend_thrice(upstreams: list[int]) -> list[tuple[int, int]]:
+        return [(64603, asn) for asn in upstreams]
+
+    @staticmethod
     def communities_announce_to_upstreams(
         upstreams: list[int],
     ) -> list[tuple[int, int]]:
