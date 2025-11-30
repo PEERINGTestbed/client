@@ -37,5 +37,5 @@ if [[ ! -s $pidfile ]] ; then
 fi
 
 while read -r pid ; do
-    kill $(( pid ))
+    kill $(( pid )) || true
 done < "$pidfile"
