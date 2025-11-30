@@ -13,7 +13,7 @@ from peering import (
     Update,
 )
 
-FIRST_ROUND = 0
+FIRST_ROUND = 44
 
 BASEDIR = pathlib.Path("phase5_anycast_withdraw2")
 DESCRIPTION = "Anycast and Withdraw 2"

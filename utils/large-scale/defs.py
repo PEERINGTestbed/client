@@ -11,7 +11,8 @@ ANNOUNCEMENT_SCHEMA = pathlib.Path("../../", peering.DEFAULT_ANNOUNCEMENT_SCHEMA
 
 TARGETS_FILE = pathlib.Path("data/targets.txt")
 CATCHMENTS_DIR = pathlib.Path("../measure-catchments")
-CATCHMENTS_PINGER_PPS = 1500
+MEASURE_CATCHMENTS_NUM_ROUNDS = 2
+CATCHMENTS_PINGER_PPS = 5000
 
 # used for iproute2 rule prio and verfploeter ICMP IDs
 # must be less than 30000 to come BEFORE the default rules
@@ -39,3 +40,16 @@ PREFIXES: list[str] = [
     "184.164.250.0/24",
     "184.164.251.0/24",
 ]
+
+VULTR_PROVIDERS_20251103 = [
+    174,
+    1299,
+    2914,
+    3257,
+    3356,
+    3491,
+    4755,
+    7922,
+    9498,
+]
+VULTR_PROVIDERS = VULTR_PROVIDERS_20251103
