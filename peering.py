@@ -233,6 +233,13 @@ class AnnouncementController:
             ("birdc", self.bird4_sock),
             ("birdc6", self.bird6_sock),
         ]:
+            if (
+                not pathlib.Path(sockpath).exists()
+                or not pathlib.Path(sockpath).is_socket()
+            ):
+                logging.info("%s is not a unix socket, skipping", sockpath)
+                continue
+
             cmd = f"{execname} -s {sockpath}"
             proc = subprocess.Popen(  # noqa: S603
                 cmd.split(),
