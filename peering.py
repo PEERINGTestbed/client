@@ -229,20 +229,24 @@ class AnnouncementController:
                 fd.write(data)
 
     def reload_config(self) -> None:
-        cmd = f"birdc -s {self.bird4_sock}"
-        proc = subprocess.Popen(  # noqa: S603
-            cmd.split(),
-            stdin=subprocess.PIPE,
-            stdout=subprocess.PIPE,
-            stderr=subprocess.PIPE,
-        )
-        stdout, stderr = proc.communicate(b"configure\n")
-        r = proc.wait()
-        if r != 0:
-            logging.warning("BIRD reconfigure exited with status %d", r)
-            logging.warning("%s", stdout)
-            logging.warning("%s", stderr)
-            raise RuntimeError("Reconfiguring BIRD failed")
+        for execname, sockpath in [
+            ("birdc", self.bird4_sock),
+            ("birdc6", self.bird6_sock),
+        ]:
+            cmd = f"{execname} -s {sockpath}"
+            proc = subprocess.Popen(  # noqa: S603
+                cmd.split(),
+                stdin=subprocess.PIPE,
+                stdout=subprocess.PIPE,
+                stderr=subprocess.PIPE,
+            )
+            stdout, stderr = proc.communicate(b"configure\n")
+            r = proc.wait()
+            if r != 0:
+                logging.warning("%s reconfigure exited with status %d", execname, r)
+                logging.warning("%s", stdout)
+                logging.warning("%s", stderr)
+                raise RuntimeError("Reconfiguring BIRD failed")
 
     def set_egress(
         self,
