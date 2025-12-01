@@ -16,7 +16,10 @@ import peering
 
 def withdraw_round() -> None:
     controller = AnnouncementController(
-        defs.BIRD_CFG_DIR, defs.BIRD4_SOCK_PATH, schema_file=defs.ANNOUNCEMENT_SCHEMA
+        defs.PREFIXES,
+        defs.BIRD_CFG_DIR,
+        defs.BIRD4_SOCK_PATH,
+        schema_file=defs.ANNOUNCEMENT_SCHEMA,
     )
     withdraw_prefixes(controller)
     time.sleep(defs.ANNOUNCEMENT_DURATION)
@@ -24,7 +27,10 @@ def withdraw_round() -> None:
 
 def run_loop(updates: list[Update], first_round: int, basedir: pathlib.Path) -> None:
     controller = AnnouncementController(
-        defs.BIRD_CFG_DIR, defs.BIRD4_SOCK_PATH, schema_file=defs.ANNOUNCEMENT_SCHEMA
+        defs.PREFIXES,
+        defs.BIRD_CFG_DIR,
+        defs.BIRD4_SOCK_PATH,
+        schema_file=defs.ANNOUNCEMENT_SCHEMA,
     )
     unset_egresses(controller)
 

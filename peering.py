@@ -10,7 +10,7 @@ import pathlib
 import re
 import subprocess
 import sys
-from typing import Optional, Union
+from ipaddress import IPv4Address, IPv4Network, IPv6Address, IPv6Network
 
 import dataclasses_json
 import jinja2
@@ -26,9 +26,6 @@ DEFAULT_ANNOUNCEMENT_SCHEMA = pathlib.Path(
     AUTO_BASE_DIR, "configs/announcement_schema.json"
 )
 DEFAULT_MUX2TAP_PATH = pathlib.Path(AUTO_BASE_DIR, "var/mux2dev.txt")
-
-IPAddress = Union[ipaddress.IPv4Address, ipaddress.IPv6Address]
-IPNetwork = ipaddress.IPv4Network  # | ipaddress.IPv6Network
 
 
 class MuxName(enum.StrEnum):
@@ -119,7 +116,7 @@ class Announcement:
 class Update:
     withdraw: list[MuxName] = dataclasses.field(default_factory=list)
     announce: list[Announcement] = dataclasses.field(default_factory=list)
-    description: Optional[str] = None
+    description: str | None = None
 
 
 @dataclasses_json.dataclass_json
@@ -157,6 +154,7 @@ class PeeringCommunities:
 class AnnouncementController:
     def __init__(
         self,
+        prefixes: list[IPv4Network | IPv6Network],
         bird_cfg_dir: pathlib.Path = DEFAULT_BIRD_CFG_DIR,
         bird4_sock: pathlib.Path = DEFAULT_BIRD4_SOCK_PATH,
         bird6_sock: pathlib.Path = DEFAULT_BIRD6_SOCK_PATH,
@@ -177,6 +175,7 @@ class AnnouncementController:
                 assert tapdev.startswith("tap")
                 self.mux2id[mux] = int(tapdev.removeprefix("tap"))
         self.config_template = self.__load_config_template()
+        self.prefixes = prefixes
         self.__create_routes()
 
     def __load_config_template(self) -> jinja2.Template:
@@ -194,7 +193,7 @@ class AnnouncementController:
     def __create_routes(self) -> None:
         path = self.bird_cfg_dir / "route-announcements"
         path.mkdir(parents=True, exist_ok=True)
-        for pfx in self.schema["definitions"]["allocatedPrefix"]["enum"]:
+        for pfx in self.prefixes:
             fpath = path / pfx.replace("/", "-")
             fd = open(fpath, "w", encoding="utf8")
             fd.write(f"route {pfx} unreachable;\n")
@@ -213,7 +212,7 @@ class AnnouncementController:
                 self.announce(prefix, announcement)
         self.reload_config()
 
-    def withdraw(self, prefix: str, mux: Optional[MuxName] = None) -> None:
+    def withdraw(self, prefix: str, mux: MuxName | None = None) -> None:
         if mux is None or mux == "all":
             for emux in MuxName:
                 self.withdraw(prefix, emux)
@@ -248,9 +247,9 @@ class AnnouncementController:
     def set_egress(
         self,
         prio: int,
-        srcip: Union[str, IPAddress],
+        srcip: str | IPv4Address | IPv6Address,
         mux: str,
-        peerid: Union[int, None],
+        peerid: int | None,
     ) -> None:
         assert ipaddress.ip_address(srcip)
         muxid = self.mux2id[mux]
@@ -348,8 +347,7 @@ class ExperimentController:
         self.validate(experiment)
         try:
             uri = f"{self.url}/api/"
-            response = self.post_request(experiment, uri)
-            return response
+            return self.post_request(experiment, uri)
         except requests.exceptions.HTTPError as http_err:
             print(f"HTTP error occurred: {http_err}")
             return http_err
@@ -407,7 +405,7 @@ def main():
     args = parser.parse_args()
 
     if args.announcement:
-        with open(args.announcement, "r", encoding="utf8") as announcement_json_fd:
+        with open(args.announcement, encoding="utf8") as announcement_json_fd:
             announcement = json.load(announcement_json_fd)
         bird_cfg_dir = pathlib.Path("configs/bird")
         bird_sock = pathlib.Path("var/bird.ctl")
@@ -418,9 +416,9 @@ def main():
     elif args.experiment and args.url:
         token_fn = "certs/token.json"
         schema_fn = "configs/experiment_schema.json"
-        with open(args.experiment, "r", encoding="utf8") as experiment_json_fd:
+        with open(args.experiment, encoding="utf8") as experiment_json_fd:
             experiment = json.load(experiment_json_fd)
-        with open(token_fn, "r", encoding="utf8") as token_json_fd:
+        with open(token_fn, encoding="utf8") as token_json_fd:
             token = json.load(token_json_fd)
 
         ctrl = ExperimentController(
