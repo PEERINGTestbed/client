@@ -337,6 +337,7 @@ class ExperimentController:
                 "Authorization": f"Bearer {self.token}",
                 "Content-Type": "application/json",
             },
+            timeout=5.0,
         )
         # If the response is successful, no Exception will be raised
         resp.raise_for_status()
@@ -349,6 +350,7 @@ class ExperimentController:
                 "Authorization": f"Bearer {self.token}",
                 "Content-Type": "application/json",
             },
+            timeout=5.0,
         )
 
         resp.raise_for_status()
