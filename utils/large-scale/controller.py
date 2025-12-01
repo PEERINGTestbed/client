@@ -69,14 +69,18 @@ def run_loop(updates: list[Update], first_round: int, basedir: pathlib.Path) -> 
             json.dump(src2mux, fd, indent=2)
 
         tstamps["measure-catchments-start"] = time.time()
-        measure_catchments(round_outdir, tstamps, rounds=defs.MEASURE_CATCHMENTS_NUM_ROUNDS)
+        measure_catchments(
+            round_outdir, tstamps, rounds=defs.MEASURE_CATCHMENTS_NUM_ROUNDS
+        )
         tstamps["measure-catchments-end"] = time.time()
         logging.info(
             "Took %f seconds to measure catchments",
             tstamps["measure-catchments-end"] - tstamps["measure-catchments-start"],
         )
 
-        spare_time = defs.ANNOUNCEMENT_DURATION - (time.time() - tstamps["deploy-pfx2ann"])
+        spare_time = defs.ANNOUNCEMENT_DURATION - (
+            time.time() - tstamps["deploy-pfx2ann"]
+        )
         logging.info("Catchment measurement finished with %d spare seconds", spare_time)
         round_wait = max(300, spare_time)
         logging.info("Sleeping %f seconds to complete round duration", round_wait)
@@ -93,7 +97,9 @@ def withdraw_prefixes(controller: AnnouncementController) -> None:
     for prefix in defs.PREFIXES:
         controller.withdraw(prefix)
     controller.reload_config()
-    logging.info("Waiting %d seconds for withdrawals to converge", defs.PROPAGATION_TIME)
+    logging.info(
+        "Waiting %d seconds for withdrawals to converge", defs.PROPAGATION_TIME
+    )
     time.sleep(defs.PROPAGATION_TIME)
 
 
@@ -103,7 +109,9 @@ def deploy_pfx2upd(
     updset = peering.UpdateSet(pfx2upd)
     controller.deploy(updset)
     logging.info("PEERING deploy %s %s", time.time(), updset.to_json())
-    logging.info("Waiting %d seconds for announcements to propagate", defs.PROPAGATION_TIME)
+    logging.info(
+        "Waiting %d seconds for announcements to propagate", defs.PROPAGATION_TIME
+    )
     time.sleep(defs.PROPAGATION_TIME)
 
 
@@ -119,7 +127,9 @@ def set_egresses(
             if not ann.peer_ids and not ann.communities:
                 announcing.extend(ann.muxes)
         muxes = [
-            mux for mux in defs.EGRESS_PREFS if mux in announcing and mux not in upd.withdraw
+            mux
+            for mux in defs.EGRESS_PREFS
+            if mux in announcing and mux not in upd.withdraw
         ]
         assert muxes
         logging.info("Setting egress for %s through %s", prefix, muxes[0])
@@ -145,7 +155,9 @@ def _run_check_log(params: list[str], check: bool, log_errors: bool = True) -> N
         raise
 
 
-def measure_catchments(outdir: pathlib.Path, tstamps: dict[str, float], rounds: int = 1) -> None:
+def measure_catchments(
+    outdir: pathlib.Path, tstamps: dict[str, float], rounds: int = 1
+) -> None:
     muxes = [str(m) for m in peering.MuxName]
     tcpdumpcmd = defs.CATCHMENTS_DIR / "launch-tcpdump.sh"
     pingercmd = defs.CATCHMENTS_DIR / "launch-pinger.sh"
@@ -158,7 +170,14 @@ def measure_catchments(outdir: pathlib.Path, tstamps: dict[str, float], rounds: 
             srcip = str(list(IPv4Network(prefix).hosts())[-1])
 
             try:
-                params = [str(tcpdumpcmd), "-i", str(srcip), "-o", str(pfxoutdir), *muxes]
+                params = [
+                    str(tcpdumpcmd),
+                    "-i",
+                    str(srcip),
+                    "-o",
+                    str(pfxoutdir),
+                    *muxes,
+                ]
                 logging.debug(str(params))
                 tstamps[f"round-{i}/launch-tcpdump/{octet}"] = time.time()
                 _run_check_log(params, True)
