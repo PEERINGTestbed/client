@@ -1,17 +1,19 @@
 #!/usr/bin/env python3
 
-from ipaddress import IPv4Network
 import itertools
 import json
 import logging
 import pathlib
 import subprocess
 import time
+from ipaddress import IPv4Network
 
 import defs
 
-from peering import AnnouncementController, Update
 import peering
+from peering import AnnouncementController, Update
+
+peering.AUTO_BASE_DIR = "/home/cunha/git/peering/client/"
 
 
 def withdraw_round() -> None:
