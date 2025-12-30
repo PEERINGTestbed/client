@@ -22,9 +22,8 @@ AUTO_BASE_DIR = pathlib.Path(__file__).absolute().parent
 DEFAULT_BIRD_CFG_DIR = pathlib.Path(AUTO_BASE_DIR, "configs/bird/")
 DEFAULT_BIRD4_SOCK_PATH = pathlib.Path(AUTO_BASE_DIR, "var/bird.ctl")
 DEFAULT_BIRD6_SOCK_PATH = pathlib.Path(AUTO_BASE_DIR, "var/bird6.ctl")
-DEFAULT_ANNOUNCEMENT_SCHEMA = pathlib.Path(
-    AUTO_BASE_DIR, "configs/announcement_schema.json"
-)
+_DEF_ANNOUNCEMENT_SCHEMA_REL = "configs/announcement_schema.json"
+DEFAULT_ANNOUNCEMENT_SCHEMA = pathlib.Path(AUTO_BASE_DIR, _DEF_ANNOUNCEMENT_SCHEMA_REL)
 DEFAULT_MUX2TAP_PATH = pathlib.Path(AUTO_BASE_DIR, "var/mux2dev.txt")
 
 
@@ -96,6 +95,54 @@ IXP_SPECIAL_PEERS_V6: dict[MuxName, dict[int, list[int]]] = {
         33108: [5, 6],  # Route Servers
         3130: [112, 593],  # RGNet
     },
+}
+
+MUX_SETS: dict[str, list[MuxName]] = {
+    "europe": [
+        MuxName.vtramsterdam,
+        MuxName.vtrfrankfurt,
+        MuxName.vtrlondon,
+        MuxName.vtrmadrid,
+        MuxName.vtrmanchester,
+        MuxName.vtrparis,
+        MuxName.vtrstockholm,
+        MuxName.vtrwarsaw,
+    ],
+    "na": [
+        MuxName.vtratlanta,
+        MuxName.vtrchicago,
+        MuxName.vtrdallas,
+        MuxName.vtrlosangelas,
+        MuxName.vtrmiami,
+        MuxName.vtrnewjersey,
+        MuxName.vtrseattle,
+        MuxName.vtrsilicon,
+        MuxName.vtrtoronto,
+    ],
+    "sa": [
+        MuxName.vtrsantiago,
+        MuxName.vtrsaopaulo,
+    ],
+    "asia": [
+        MuxName.vtrbangalore,
+        MuxName.vtrdelhi,
+        MuxName.vtrmelbourne,
+        MuxName.vtrmumbai,
+        MuxName.vtrosaka,
+        MuxName.vtrseoul,
+        MuxName.vtrsingapore,
+        MuxName.vtrsydney,
+        MuxName.vtrtokyo,
+    ],
+    "japan": [
+        MuxName.vtrosaka,
+        MuxName.vtrtokyo,
+    ],
+    "india": [
+        MuxName.vtrbangalore,
+        MuxName.vtrdelhi,
+        MuxName.vtrmumbai,
+    ],
 }
 
 
@@ -233,10 +280,7 @@ class AnnouncementController:
             ("birdc", self.bird4_sock),
             ("birdc6", self.bird6_sock),
         ]:
-            if (
-                not pathlib.Path(sockpath).exists()
-                or not pathlib.Path(sockpath).is_socket()
-            ):
+            if not sockpath.exists() or not sockpath.is_socket():
                 logging.info("%s is not a unix socket, skipping", sockpath)
                 continue
 
@@ -315,7 +359,11 @@ def _run_check_log(cmd: str, check: bool, log_errors: bool = True) -> None:
 
 class ExperimentController:
     def __init__(
-        self, url, token, refresh=None, schema_fn="configs/experiment_schema.json"
+        self,
+        url: str,
+        token: str,
+        refresh: str | None = None,
+        schema_fn: str = "configs/experiment_schema.json",
     ):
         self.url = url
         self.token = token  # access-token
@@ -374,9 +422,9 @@ class ExperimentController:
             print(f"HTTP error occurred: {http_err}")
             return http_err
 
-    # "A refresh token is a special token that is used to obtain additional access tokens.
-    # This allows you to have short-lived access tokens without having to collect credentials
-    # every time one expires."
+    # "A refresh token is a special token that is used to obtain additional access
+    # tokens. This allows you to have short-lived access tokens without having to
+    # collect credentials every time one expires."
     # https://developer.okta.com/docs/guides/refresh-tokens/main/
 
     def refresh_token(self):
@@ -387,7 +435,7 @@ class ExperimentController:
         return response
 
 
-def create_parser():
+def create_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser()
     group = parser.add_mutually_exclusive_group(required=True)
     group.add_argument(
@@ -413,7 +461,7 @@ def create_parser():
     return parser
 
 
-def main():
+def main() -> int:
     parser = create_parser()
     args = parser.parse_args()
 
@@ -435,12 +483,16 @@ def main():
             token = json.load(token_json_fd)
 
         ctrl = ExperimentController(
-            url=args.url, token=token["access"], schema_fn=schema_fn
+            url=args.url,
+            token=token["access"],
+            schema_fn=schema_fn,
         )
         response = ctrl.deploy(experiment)
         print(response)
     elif args.experiment and not args.url:
         parser.error("Note: --url is required when --experiment is set")
+
+    return 0
 
 
 if __name__ == "__main__":
