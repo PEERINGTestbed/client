@@ -1,4 +1,4 @@
-#!/usr/bin/env python3
+#!/usr/bin/env python
 
 import logging
 import math
@@ -6,12 +6,12 @@ import pathlib
 
 import controller
 import defs
-from phases import phase2_muxsets, phase2a, phase2b
+from phases import phase8a, phase8b
 
 FIRST_ROUND = 0
 
-BASEDIR = pathlib.Path("phase2_anycast_prepend1")
-DESCRIPTION = "Anycast and Prepend 1"
+BASEDIR = pathlib.Path("phase8_unicast1_1vtr")
+DESCRIPTION = "Unicast announcements from 1 site and 1 Vultr provider"
 
 
 def main() -> None:
@@ -22,7 +22,7 @@ def main() -> None:
     handler = logging.getLogger()
     handler.addHandler(logging.FileHandler(BASEDIR / "log.txt"))
 
-    updates = phase2a() + phase2b() + phase2_muxsets()
+    updates = phase8a() + phase8b()
     logging.info("Starting experiment %s", BASEDIR)
     nrounds = math.ceil(len(updates) / len(defs.PREFIXES))
     logging.info("Will deploy %d announcements in %d rounds", len(updates), nrounds)
@@ -30,6 +30,7 @@ def main() -> None:
 
     controller.withdraw_round()
     controller.run_loop(updates, FIRST_ROUND, BASEDIR)
+
 
 if __name__ == "__main__":
     main()
