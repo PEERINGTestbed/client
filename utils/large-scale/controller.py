@@ -123,14 +123,18 @@ def set_egresses(
         octet = int(IPv4Network(prefix).network_address.packed[2])
         srcip = str(list(IPv4Network(prefix).hosts())[-1])
         announcing: list[peering.MuxName] = []
+        announcing_undecorated: list[peering.MuxName] = []
         for ann in upd.announce:
+            announcing.extend(ann.muxes)
             if not ann.peer_ids and not ann.communities:
-                announcing.extend(ann.muxes)
+                announcing_undecorated.extend(ann.muxes)
         muxes = [
             mux
             for mux in defs.EGRESS_PREFS
-            if mux in announcing and mux not in upd.withdraw
+            if mux in announcing_undecorated and mux not in upd.withdraw
         ]
+        if not muxes:
+            muxes = announcing
         assert muxes
         logging.info("Setting egress for %s through %s", prefix, muxes[0])
         src2mux[srcip] = muxes[0]
