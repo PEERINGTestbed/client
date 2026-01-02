@@ -33,6 +33,8 @@ pub struct FileResult {
 #[derive(serde::Serialize)]
 pub struct ProviderOutput {
     pub mux2peers: HashMap<String, FileResult>,
+    pub mux2peerlist4: HashMap<String, Vec<u32>>,
+    pub mux2peerlist6: HashMap<String, Vec<u32>>,
     pub peer2muxes: HashMap<u32, Vec<String>>,
 }
 

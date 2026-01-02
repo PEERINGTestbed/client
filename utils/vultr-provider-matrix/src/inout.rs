@@ -84,8 +84,48 @@ pub fn write_providers_json(
         }
     }
 
+    let mux2peerlist4: HashMap<String, Vec<u32>> = mux2peers.iter().filter_map(|(k,v)| {
+        match v.ip_version {
+            4 => Some((k.split_once('.').unwrap().0.to_owned(), v.peers.keys().copied().collect())),
+            6 => None,
+            _ => unreachable!(),
+        }
+    }).collect();
+    let mux2peerlist6: HashMap<String, Vec<u32>> = mux2peers.iter().filter_map(|(k,v)| {
+        match v.ip_version {
+            4 => None,
+            6 => Some((k.split_once('.').unwrap().0.to_owned(), v.peers.keys().copied().collect())),
+            _ => unreachable!(),
+        }
+    }).collect();
+
+    let simple_path4 = provider_path.with_file_name(
+        provider_path.file_name().unwrap().to_str().unwrap().replace(".json", "-simple-v4.json")
+    );
+    let simple_path6 = provider_path.with_file_name(
+        provider_path.file_name().unwrap().to_str().unwrap().replace(".json", "-simple-v6.json")
+    );
+    let out_file = OpenOptions::new()
+        .create(true)
+        .truncate(true)
+        .write(true)
+        .open(&simple_path4)
+        .with_context(|| format!("Failed to open output file: {:?}", simple_path4))?;
+    serde_json::to_writer_pretty(&out_file, &mux2peerlist4)
+        .context("Failed to serialize mux2peerlist to JSON")?;
+    let out_file = OpenOptions::new()
+        .create(true)
+        .truncate(true)
+        .write(true)
+        .open(&simple_path6)
+        .with_context(|| format!("Failed to open output file: {:?}", simple_path6))?;
+    serde_json::to_writer_pretty(&out_file, &mux2peerlist6)
+        .context("Failed to serialize mux2peerlist to JSON")?;
+
     let output = ProviderOutput {
         mux2peers,
+        mux2peerlist4,
+        mux2peerlist6,
         peer2muxes,
     };
 
@@ -97,6 +137,7 @@ pub fn write_providers_json(
         .with_context(|| format!("Failed to open provider output file: {:?}", provider_path))?;
     serde_json::to_writer_pretty(&out_file, &output)
         .context("Failed to serialize provider results to JSON")?;
+
     Ok(())
 }
 
