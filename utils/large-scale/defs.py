@@ -5,9 +5,10 @@ import peering
 PROPAGATION_TIME = 600
 ANNOUNCEMENT_DURATION = 5400
 
-BIRD_CFG_DIR = pathlib.Path("../../", peering.DEFAULT_BIRD_CFG_DIR)
-BIRD4_SOCK_PATH = pathlib.Path("../../", peering.DEFAULT_BIRD4_SOCK_PATH)
-ANNOUNCEMENT_SCHEMA = pathlib.Path("../../", peering.DEFAULT_ANNOUNCEMENT_SCHEMA)
+BIRD_CFG_DIR = pathlib.Path("../../", "configs/bird")
+BIRD4_SOCK_PATH = pathlib.Path("../../", "var/bird.ctl")
+ANNOUNCEMENT_SCHEMA = pathlib.Path("../../", "configs/announcement_schema.json")
+MUX2TAP_FILE = pathlib.Path("../../", "var/mux2dev.txt")
 
 TARGETS_FILE = pathlib.Path("data/targets.txt")
 CATCHMENTS_DIR = pathlib.Path("../measure-catchments")

@@ -22,6 +22,7 @@ def withdraw_round() -> None:
         defs.BIRD_CFG_DIR,
         defs.BIRD4_SOCK_PATH,
         schema_file=defs.ANNOUNCEMENT_SCHEMA,
+        mux2tap_file=defs.MUX2TAP_FILE,
     )
     withdraw_prefixes(controller)
     time.sleep(defs.ANNOUNCEMENT_DURATION)
@@ -33,6 +34,7 @@ def run_loop(updates: list[Update], first_round: int, basedir: pathlib.Path) -> 
         defs.BIRD_CFG_DIR,
         defs.BIRD4_SOCK_PATH,
         schema_file=defs.ANNOUNCEMENT_SCHEMA,
+        mux2tap_file=defs.MUX2TAP_FILE,
     )
     unset_egresses(controller)
 
