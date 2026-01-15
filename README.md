@@ -2,6 +2,8 @@
 
 The PEERING client controller is a set of scripts to ease configuration and operation of a PEERING client, able to connect to PEERING routers and announce PEERING prefixes.
 
+**Temporary notice:** Support for BIRD2 is now available in the [`bird2`](https://github.com/PEERINGTestbed/client/tree/bird2) branch.
+
 ## Installation
 
 After cloning [this repository][1], follow the instructions below to
