@@ -57,7 +57,7 @@ Once your client is configured you should be able to run experiments.  Here are 
 
 - Use the `./peering` script to establish a BGP session for exchanging routes with the router, e.g., `./peering bgp start`.
 
-    > Warning: When using IPv6, you need to edit the `client/bird6/bird6.conf` file and set a valid router ID (search for the line starting with `router id`) and use a unique IP address (e.g., one allocated to your experiment)
+    > Warning: When using IPv6, you need to edit the `configs/bird6/bird6.conf` file and set a valid router ID (search for the line starting with `router id`) and use a unique IP address (e.g., one allocated to your experiment)
     >
     > Warning: The BIRD configuration has BGP sessions configured with *all* PEERING muxes. You can control which sessions get established by bringing the OpenVPN tunnels up or down. However, the BIRD configuration also imports *all* routes received from the muxes. If you establish many sessions and import all routes, RAM utilization *will* be high. Start slow and provision accordingly.
 
