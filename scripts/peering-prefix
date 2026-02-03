@@ -143,10 +143,10 @@ withdraw    Withdraw prefix to one or all muxes.
             (Large communities are filtered by default and allowed upon
             request.)
 
--R          Do not configure the data plane.  We setup a working data
+-R          Do not configure the data plane.  $(tput setaf 3)We setup a working data
             plane by adding the .1 address of announced prefixes to the
-            loopback interface and setting outgoing packets to use
-            table 20000, which is populated by BIRD.  This flag skips
+            loopback interface and source-routing outgoing packets to use
+            table 20000, which is populated by BIRD.$(tput sgr0)  This flag skips
             configuration of the data plane, and is particularly useful
             if using the app submodule to avoid conflicting routing
             rules.
@@ -257,6 +257,7 @@ fi
 subcmd=$1
 case $subcmd in
 announce)
+    echo "Configuring announcement of $prefix"
     if [ "$mux" = all ] ; then
         for cmux in "${!mux2dev[@]}" ; do
             do_announce "$cmux"
@@ -266,6 +267,7 @@ announce)
     fi
     echo "configure \"$bird_cfgfile\"" | $birdc_exec -s "$bird_sock"
     if [ $config_dataplane -eq 1 ] ; then
+        echo "Setting up data plane (.1 IP added to loopback, source routing through table $kernel_table)"
         ip $minus6 addr add "$pfxdot1" dev lo &> /dev/null || true
         ip $minus6 rule add from "$prefix" table "$kernel_table" \
                 pref "$kernel_table" &> /dev/null || true
