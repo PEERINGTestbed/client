@@ -15,15 +15,6 @@ from peering import (
 AS_PATH_PREPEND_LIST = [47065, 47065, 47065]
 
 
-def phase0() -> list[Update]:
-    updates = [Update([], [Announcement(list(MuxName))], "anycast")]
-    for mux in MuxName:
-        description = f"unicast:{mux}"
-        announce = [Announcement([mux])]
-        updates.append(Update([], announce, description))
-    return updates
-
-
 def phase1a() -> list[Update]:
     updates = [Update([], [Announcement(list(MuxName))], "anycast")]
     for mux in MuxName:
@@ -304,4 +295,24 @@ def phase8b() -> list[Update]:
                 announce = [vtr_ann, nonvtr_sub_ann]
                 description = f"unicast:{mux}+announce:{peerids_str}"
                 updates.append(Update([], announce, description))
+    return updates
+
+
+def phase9() -> list[Update]:
+    updates = [Update([], [Announcement(list(MuxName))], "anycast")]
+    for mux in MuxName:
+        description = f"unicast:{mux}"
+        announce = [Announcement([mux])]
+        updates.append(Update([], announce, description))
+    return updates
+
+
+def phase10() -> list[Update]:
+    updates = [Update([], [Announcement(list(MuxName))], "anycast")]
+    vtr_muxes = [m for m in MuxName if m.startswith("vtr")]
+    for provider in defs.VULTR_PROVIDERS:
+        vtr_comms = Vultr.communities_announce_to_upstreams([provider])
+        vtr_ann = Announcement(vtr_muxes, communities=vtr_comms)
+        description = f"unicast:vtr{provider}"
+        updates.append(Update([], [vtr_ann], description))
     return updates
