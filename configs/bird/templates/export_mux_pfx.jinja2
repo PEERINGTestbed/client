@@ -11,5 +11,8 @@ if ( net = {{prefix}} ) then {
     {%- for c1, c2 in spec.get('communities', []) %}
     bgp_community.add(({{c1}},{{c2}}));
     {%- endfor %}
+    {%- for c1, c2, c3 in spec.get('large_communities', []) %}
+    bgp_large_community.add(({{c1}},{{c2}},{{c3}}));
+    {%- endfor %}
     accept;
 }

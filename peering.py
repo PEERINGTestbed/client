@@ -154,6 +154,8 @@ class Announcement:
     """Peer IDs to announce to (communities will be computed automatically)"""
     communities: list[tuple[int, int]] = dataclasses.field(default_factory=list)
     """List of communities to attach to announcement"""
+    large_communities: list[tuple[int, int, int]] = dataclasses.field(default_factory=list)
+    """List of BGP large communities to attach to announcement"""
     prepend: list[int] = dataclasses.field(default_factory=list)
     """List of ASNs to prepend to AS-path"""
 
