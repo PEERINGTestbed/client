@@ -19,6 +19,8 @@ import requests
 
 AUTO_BASE_DIR = pathlib.Path(__file__).absolute().parent
 
+DEFAULT_PREFIXES4_FILE = pathlib.Path(AUTO_BASE_DIR, "prefixes.txt")
+DEFAULT_PREFIXES6_FILE = pathlib.Path(AUTO_BASE_DIR, "prefixes6.txt")
 DEFAULT_BIRD_CFG_DIR = pathlib.Path(AUTO_BASE_DIR, "configs/bird/")
 DEFAULT_BIRD4_SOCK_PATH = pathlib.Path(AUTO_BASE_DIR, "var/bird.ctl")
 DEFAULT_BIRD6_SOCK_PATH = pathlib.Path(AUTO_BASE_DIR, "var/bird6.ctl")
@@ -467,14 +469,15 @@ def main() -> int:
     parser = create_parser()
     args = parser.parse_args()
 
+    prefixes4 = open(DEFAULT_PREFIXES4_FILE, encoding="utf8").read().splitlines()
+    prefixes6 = open(DEFAULT_PREFIXES6_FILE, encoding="utf8").read().splitlines()
+    prefixes = list(map(ipaddress.ip_network, prefixes4 + prefixes6))
+
     if args.announcement:
         with open(args.announcement, encoding="utf8") as announcement_json_fd:
-            announcement = json.load(announcement_json_fd)
-        bird_cfg_dir = pathlib.Path("configs/bird")
-        bird_sock = pathlib.Path("var/bird.ctl")
-        schema_fn = pathlib.Path("configs/announcement_schema.json")
-
-        ctrl = AnnouncementController(bird_cfg_dir, bird_sock, schema_fn)
+            announcement_dict = json.load(announcement_json_fd)
+            announcement = UpdateSet.from_dict({ "prefix2update": announcement_dict })
+        ctrl = AnnouncementController(prefixes)
         ctrl.deploy(announcement)
     elif args.experiment and args.url:
         token_fn = "certs/token.json"

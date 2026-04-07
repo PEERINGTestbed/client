@@ -1,0 +1,13 @@
+{
+    "184.164.224.0/24": {
+        "announce": [
+            {
+                "muxes": [
+                    "ufmg01"
+                ]
+            }
+        ],
+        "withdraw": [],
+        "description": "Test Announcement"
+    }
+}
