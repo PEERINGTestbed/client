@@ -245,7 +245,7 @@ class AnnouncementController:
         path = self.bird_cfg_dir / "route-announcements"
         path.mkdir(parents=True, exist_ok=True)
         for pfx in self.prefixes:
-            fpath = path / pfx.replace("/", "-")
+            fpath = path / str(pfx).replace("/", "-")
             fd = open(fpath, "w", encoding="utf8")
             fd.write(f"route {pfx} unreachable;\n")
             fd.close()
