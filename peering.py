@@ -83,7 +83,7 @@ IXP_SPECIAL_PEERS_V4: dict[MuxName, dict[int, list[int]]] = {
     },
     MuxName.seattle01: {
         33108: [1, 2],  # Route Servers
-        3130: [101, 592],  # RGNet
+        3130: [592],  # RGNet
     },
 }
 
@@ -95,7 +95,7 @@ IXP_SPECIAL_PEERS_V6: dict[MuxName, dict[int, list[int]]] = {
     },
     MuxName.seattle01: {
         33108: [5, 6],  # Route Servers
-        3130: [112, 593],  # RGNet
+        3130: [593],  # RGNet
     },
 }
 
