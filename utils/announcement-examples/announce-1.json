@@ -3,7 +3,7 @@
     "announce": [
     {
       "muxes": ["amsterdam01", "ufmg01"],
-      "peers": [168, 60],
+      "peer_ids": [168, 60],
       "origin": 47065,
       "prepend": [73, 74]
     },

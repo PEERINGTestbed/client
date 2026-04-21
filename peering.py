@@ -1,35 +1,26 @@
 #!/usr/bin/env python3
 
 import argparse
-import dataclasses
 import enum
-import ipaddress
 import json
 import logging
 import pathlib
 import re
+import socket
 import subprocess
 import sys
-from ipaddress import IPv4Address, IPv4Network, IPv6Address, IPv6Network
+from functools import cached_property
+from ipaddress import IPv4Network, IPv6Network
+from typing import Annotated, Self, assert_never
 
-import dataclasses_json
-import jinja2
-import jsonschema
 import requests
+from pydantic import BaseModel, Field
+from pyroute2 import IPRoute
 
 AUTO_BASE_DIR = pathlib.Path(__file__).absolute().parent
 
-DEFAULT_PREFIXES4_FILE = pathlib.Path(AUTO_BASE_DIR, "prefixes.txt")
-DEFAULT_PREFIXES6_FILE = pathlib.Path(AUTO_BASE_DIR, "prefixes6.txt")
-DEFAULT_BIRD_CFG_DIR = pathlib.Path(AUTO_BASE_DIR, "configs/bird/")
-DEFAULT_BIRD4_SOCK_PATH = pathlib.Path(AUTO_BASE_DIR, "var/bird.ctl")
-DEFAULT_BIRD6_SOCK_PATH = pathlib.Path(AUTO_BASE_DIR, "var/bird6.ctl")
-_DEF_ANNOUNCEMENT_SCHEMA_REL = "configs/announcement_schema.json"
-DEFAULT_ANNOUNCEMENT_SCHEMA = pathlib.Path(AUTO_BASE_DIR, _DEF_ANNOUNCEMENT_SCHEMA_REL)
-DEFAULT_MUX2TAP_PATH = pathlib.Path(AUTO_BASE_DIR, "var/mux2dev.txt")
 
-
-class MuxName(enum.StrEnum):
+class Mux(enum.StrEnum):
     amsterdam01 = "amsterdam01"
     clemson01 = "clemson01"
     grnet01 = "grnet01"
@@ -75,105 +66,219 @@ class MuxName(enum.StrEnum):
     vtrwarsaw = "vtrwarsaw"
 
 
-IXP_SPECIAL_PEERS_V4: dict[MuxName, dict[int, list[int]]] = {
-    MuxName.amsterdam01: {
+def get_ip_rule_prio_offset(pfx: IPv4Network | IPv6Network) -> int:
+    """Computes the IP rule priority offset based on the prefix.
+
+    For IPv4, it is the value of the 3rd octet of the network address.
+    For IPv6, it is the value of the 6th octet (bits 40-47 of the prefix).
+    """
+    if isinstance(pfx, IPv4Network):
+        return int(pfx.network_address.packed[2])
+    if isinstance(pfx, IPv6Network):
+        return int(pfx.network_address.packed[5])
+    assert_never(pfx)
+
+
+def build_mux2id(cfgs_dir: pathlib.Path) -> dict[Mux, int]:
+    """Builds the mux to ID mapping by reading OpenVPN configuration files.
+
+    Raises:
+        RuntimeError: When OpenVPN configurations are not found."""
+
+    if not cfgs_dir.exists():
+        raise RuntimeError("OpenVPN configurations not found")
+
+    mux2id: dict[Mux, int] = {}
+    dev_re = re.compile(r"^dev\s+tap(\d+)", re.MULTILINE)
+
+    for fn in cfgs_dir.glob("*.conf"):
+        try:
+            mux = Mux(fn.stem)
+        except ValueError:
+            logging.warning("OpenVPN config %s does not match a known MuxName", fn)
+            continue
+        content = fn.read_text()
+        match = dev_re.search(content)
+        if match:
+            mux2id[mux] = int(match.group(1))
+
+    return mux2id
+
+
+IXP_SPECIAL_PEERS_V4: dict[Mux, dict[int, list[int]]] = {
+    Mux.amsterdam01: {
+        # PeerASN: list[sessionIDs]
         6777: [27, 29],  # Route Servers
         12859: [60, 61],  # Bit
         8283: [52],  # Coloclue
     },
-    MuxName.seattle01: {
+    Mux.seattle01: {
         33108: [1, 2],  # Route Servers
         3130: [592],  # RGNet
     },
 }
 
-IXP_SPECIAL_PEERS_V6: dict[MuxName, dict[int, list[int]]] = {
-    MuxName.amsterdam01: {
+IXP_SPECIAL_PEERS_V6: dict[Mux, dict[int, list[int]]] = {
+    Mux.amsterdam01: {
+        # PeerASN: list[sessionIDs]
         6777: [71, 72],  # Route Servers
         12859: [95, 96],  # Bit
         8283: [94],  # Coloclue
     },
-    MuxName.seattle01: {
+    Mux.seattle01: {
         33108: [5, 6],  # Route Servers
         3130: [593],  # RGNet
     },
 }
 
-MUX_SETS: dict[str, list[MuxName]] = {
+MUX_SETS: dict[str, list[Mux]] = {
     "europe": [
-        MuxName.vtramsterdam,
-        MuxName.vtrfrankfurt,
-        MuxName.vtrlondon,
-        MuxName.vtrmadrid,
-        MuxName.vtrmanchester,
-        MuxName.vtrparis,
-        MuxName.vtrstockholm,
-        MuxName.vtrwarsaw,
+        Mux.vtramsterdam,
+        Mux.vtrfrankfurt,
+        Mux.vtrlondon,
+        Mux.vtrmadrid,
+        Mux.vtrmanchester,
+        Mux.vtrparis,
+        Mux.vtrstockholm,
+        Mux.vtrwarsaw,
     ],
     "na": [
-        MuxName.vtratlanta,
-        MuxName.vtrchicago,
-        MuxName.vtrdallas,
-        MuxName.vtrlosangelas,
-        MuxName.vtrmiami,
-        MuxName.vtrnewjersey,
-        MuxName.vtrseattle,
-        MuxName.vtrsilicon,
-        MuxName.vtrtoronto,
+        Mux.vtratlanta,
+        Mux.vtrchicago,
+        Mux.vtrdallas,
+        Mux.vtrlosangelas,
+        Mux.vtrmiami,
+        Mux.vtrnewjersey,
+        Mux.vtrseattle,
+        Mux.vtrsilicon,
+        Mux.vtrtoronto,
     ],
     "sa": [
-        MuxName.vtrsantiago,
-        MuxName.vtrsaopaulo,
+        Mux.vtrsantiago,
+        Mux.vtrsaopaulo,
     ],
     "asia": [
-        MuxName.vtrbangalore,
-        MuxName.vtrdelhi,
-        MuxName.vtrmelbourne,
-        MuxName.vtrmumbai,
-        MuxName.vtrosaka,
-        MuxName.vtrseoul,
-        MuxName.vtrsingapore,
-        MuxName.vtrsydney,
-        MuxName.vtrtokyo,
+        Mux.vtrbangalore,
+        Mux.vtrdelhi,
+        Mux.vtrmelbourne,
+        Mux.vtrmumbai,
+        Mux.vtrosaka,
+        Mux.vtrseoul,
+        Mux.vtrsingapore,
+        Mux.vtrsydney,
+        Mux.vtrtokyo,
     ],
     "japan": [
-        MuxName.vtrosaka,
-        MuxName.vtrtokyo,
+        Mux.vtrosaka,
+        Mux.vtrtokyo,
     ],
     "india": [
-        MuxName.vtrbangalore,
-        MuxName.vtrdelhi,
-        MuxName.vtrmumbai,
+        Mux.vtrbangalore,
+        Mux.vtrdelhi,
+        Mux.vtrmumbai,
     ],
 }
 
 
-@dataclasses_json.dataclass_json
-@dataclasses.dataclass
-class Announcement:
-    muxes: list[MuxName]
-    peer_ids: list[int] = dataclasses.field(default_factory=list)
+class Announcement(BaseModel):
+    muxes: Annotated[set[Mux], Field(min_length=1)]
+    peer_ids: list[int] = Field(default_factory=list)
     """Peer IDs to announce to (communities will be computed automatically)"""
-    communities: list[tuple[int, int]] = dataclasses.field(default_factory=list)
+    communities: list[tuple[int, int]] = Field(default_factory=list)
     """List of communities to attach to announcement"""
-    large_communities: list[tuple[int, int, int]] = dataclasses.field(default_factory=list)
+    large_communities: list[tuple[int, int, int]] = Field(default_factory=list)
     """List of BGP large communities to attach to announcement"""
-    prepend: list[int] = dataclasses.field(default_factory=list)
+    prepend: Annotated[list[int], Field(max_length=5)] = Field(default_factory=list)
     """List of ASNs to prepend to AS-path"""
 
+    def is_plain(self) -> bool:
+        return (
+            (not self.peer_ids)
+            and (not self.communities)
+            and (not self.large_communities)
+            and (not self.prepend)
+        )
 
-@dataclasses_json.dataclass_json
-@dataclasses.dataclass
-class Update:
-    withdraw: list[MuxName] = dataclasses.field(default_factory=list)
-    announce: list[Announcement] = dataclasses.field(default_factory=list)
+
+class Update(BaseModel):
+    withdraw: set[Mux] = Field(default_factory=set)
+    announce: list[Announcement] = Field(default_factory=list)
     description: str | None = None
 
+    def find_egress_mux(
+        self,
+        egress_priority: list[Mux] | None,
+    ) -> Mux:
+        """Get egress prioritizing plain announcements from muxes in priority list."""
+        assert self.announce
 
-@dataclasses_json.dataclass_json
-@dataclasses.dataclass
-class UpdateSet:
-    prefix2update: dict[str, Update]
+        announcing: set[Mux] = set()
+        announcing_plain: set[Mux] = set()
+        for ann in self.announce:
+            announcing.update(ann.muxes)
+            if ann.is_plain():
+                announcing_plain.update(ann.muxes)
+
+        assert not (self.withdraw & announcing)
+
+        if egress_priority is not None:
+            for mux in egress_priority:
+                if mux in announcing_plain:
+                    return mux
+            for mux in egress_priority:
+                if mux in announcing:
+                    return mux
+
+        if announcing_plain:
+            return next(iter(announcing_plain))
+
+        return next(iter(announcing))
+
+
+class UpdateSet(BaseModel):
+    prefix2update: dict[IPv4Network | IPv6Network, Update]
+
+
+class ControllerConfig(BaseModel):
+    prefixes: list[IPv4Network | IPv6Network]
+    bird_cfg_dir: pathlib.Path
+    bird4_sock: pathlib.Path
+    bird6_sock: pathlib.Path
+    openvpn_cfg_dir: pathlib.Path
+    base_ip_rule_prio: int
+
+    @classmethod
+    def from_basedir(
+        cls,
+        path: pathlib.Path,
+        read_prefixes: bool = True,
+        base_ip_rule_prio: int = 4000,
+    ) -> Self:
+        prefixes = []
+        if read_prefixes:
+            p4fp = path / "prefixes.txt"
+            p6fp = path / "prefixes6.txt"
+            if p4fp.exists():
+                prefixes.extend([IPv4Network(v) for v in p4fp.read_text().splitlines()])
+                prefixes.extend([IPv6Network(v) for v in p6fp.read_text().splitlines()])
+        return cls(
+            prefixes=prefixes,
+            bird_cfg_dir=path / "configs/bird/",
+            bird4_sock=path / "var/bird.ctl",
+            bird6_sock=path / "var/bird6.ctl",
+            openvpn_cfg_dir=path / "configs/openvpn/",
+            base_ip_rule_prio=base_ip_rule_prio,
+        )
+
+
+class Experiment(BaseModel):
+    description: str
+    email: str
+    rounds: list[dict[str, Update]]
+
+
+class ExperimentEnvelope(BaseModel):
+    experiment: Experiment
 
 
 class Vultr:
@@ -203,86 +308,110 @@ class PeeringCommunities:
 
 
 class AnnouncementController:
-    def __init__(
-        self,
-        prefixes: list[IPv4Network | IPv6Network],
-        bird_cfg_dir: pathlib.Path = DEFAULT_BIRD_CFG_DIR,
-        bird4_sock: pathlib.Path = DEFAULT_BIRD4_SOCK_PATH,
-        bird6_sock: pathlib.Path = DEFAULT_BIRD6_SOCK_PATH,
-        schema_file: pathlib.Path = DEFAULT_ANNOUNCEMENT_SCHEMA,
-        mux2tap_file: pathlib.Path = DEFAULT_MUX2TAP_PATH,
-    ) -> None:
-        assert bird_cfg_dir.exists(), str(bird_cfg_dir)
-        self.bird_cfg_dir = pathlib.Path(bird_cfg_dir)
-        assert bird4_sock.exists() or bird6_sock.exists()
-        self.bird4_sock = bird4_sock
-        self.bird6_sock = bird6_sock
-        with open(schema_file, encoding="utf8") as fd:
-            self.schema = json.load(fd)
-        self.mux2id: dict[str, int] = {}
-        with open(mux2tap_file, encoding="utf8") as fd:
-            for line in fd:
-                mux, tapdev = line.strip().split()
-                assert tapdev.startswith("tap")
-                self.mux2id[mux] = int(tapdev.removeprefix("tap"))
-        self.config_template = self.__load_config_template()
-        self.prefixes = prefixes
+    def __init__(self, config: ControllerConfig) -> None:
+        assert config.bird_cfg_dir.exists(), str(config.bird_cfg_dir)
+        self.config = config
+        assert config.bird4_sock.exists() or config.bird6_sock.exists()
+        self.last_updates: UpdateSet | None = None
         self.__create_routes()
 
-    def __load_config_template(self) -> jinja2.Template:
-        path = self.bird_cfg_dir / "templates"
-        env = jinja2.Environment(loader=jinja2.FileSystemLoader(path), autoescape=True)
-        return env.get_template("export_mux_pfx.jinja2")
+    @staticmethod
+    def render_bird_config(
+        prefix: IPv4Network | IPv6Network, ann: Announcement
+    ) -> str:
+        lines = [f"if ( net = {prefix} ) then {{"]
+        for asn in reversed(ann.prepend):
+            lines.append(f"    bgp_path.prepend({asn});")
+        for c in ann.peer_ids:
+            lines.append(f"    bgp_community.add((47065,{c}));")
+        for c1, c2 in ann.communities:
+            lines.append(f"    bgp_community.add(({c1},{c2}));")
+        for c1, c2, c3 in ann.large_communities:
+            lines.append(f"    bgp_large_community.add(({c1},{c2},{c3}));")
+        lines.append("    accept;")
+        lines.append("}")
+        return "\n".join(lines) + "\n"
 
-    def __config_file(self, prefix: str, mux: MuxName) -> pathlib.Path:
-        assert ipaddress.ip_network(prefix) is not None
-        prefix = prefix.replace("/", "-")
-        prefix = prefix.replace(":", "i")  # removing colon from v6 prefixes
-        fn = f"export_{mux}_{prefix}.conf"
-        return self.bird_cfg_dir / "prefix-filters" / fn
+    def __config_file(
+        self, prefix: IPv4Network | IPv6Network, mux: Mux
+    ) -> pathlib.Path:
+        pfx_str = str(prefix).replace("/", "-")
+        pfx_str = pfx_str.replace(":", "i")  # removing colon from v6 prefixes
+        fn = f"export_{mux}_{pfx_str}.conf"
+        return self.config.bird_cfg_dir / "prefix-filters" / fn
 
     def __create_routes(self) -> None:
-        path = self.bird_cfg_dir / "route-announcements"
+        path = self.config.bird_cfg_dir / "route-announcements"
         path.mkdir(parents=True, exist_ok=True)
-        for pfx in self.prefixes:
+        for pfx in self.config.prefixes:
             fpath = path / str(pfx).replace("/", "-")
             fd = open(fpath, "w", encoding="utf8")
             fd.write(f"route {pfx} unreachable;\n")
             fd.close()
 
-    def validate(self, updates: UpdateSet) -> None:
-        d = {pfx: upd.to_dict() for pfx, upd in updates.prefix2update.items()}
-        jsonschema.validate(d, self.schema)
+    @cached_property
+    def mux2id(self) -> dict[Mux, int]:
+        return build_mux2id(self.config.openvpn_cfg_dir)
 
-    def deploy(self, updates: UpdateSet) -> None:
-        self.validate(updates)
+    def deploy(
+        self,
+        updates: UpdateSet,
+        set_egress: bool = False,
+        egress_priority: list[Mux] | None = None,
+    ) -> None:
+        self.last_updates = updates
         for prefix, update in updates.prefix2update.items():
             for mux in update.withdraw:
-                self.withdraw(prefix, mux)
+                self.withdraw(prefix, mux, set_egress)
             for announcement in update.announce:
                 self.announce(prefix, announcement)
         self.reload_config()
 
-    def withdraw(self, prefix: str, mux: MuxName | None = None) -> None:
+        if set_egress:
+            for prefix, update in updates.prefix2update.items():
+                if not update.announce:
+                    continue
+                egress_mux = update.find_egress_mux(egress_priority)
+                self.set_egress(prefix, egress_mux, None)
+
+    def withdraw(
+        self,
+        prefix: IPv4Network | IPv6Network | None = None,
+        mux: Mux | None = None,
+        unset_egress: bool = False,
+    ) -> None:
+        if prefix is None:
+            if self.last_updates:
+                for pfx in self.last_updates.prefix2update:
+                    self.withdraw(pfx, mux, unset_egress)
+            else:
+                m = "withdraw call with no prefixes and no prior announcement"
+                logging.warning(m)
+            return
+
+        if unset_egress:
+            self.unset_egress(prefix)
+
         if mux is None or mux == "all":
-            for emux in MuxName:
+            for emux in Mux:
                 self.withdraw(prefix, emux)
             return
+
         try:
             self.__config_file(prefix, mux).unlink()
         except FileNotFoundError:
             pass
 
-    def announce(self, prefix: str, ann: Announcement) -> None:
+    def announce(self, prefix: IPv4Network | IPv6Network, ann: Announcement) -> None:
         for mux in ann.muxes:
             with open(self.__config_file(prefix, mux), "w", encoding="utf8") as fd:
-                data = self.config_template.render(prefix=prefix, spec=ann.to_dict())
+                data = AnnouncementController.render_bird_config(prefix, ann)
                 fd.write(data)
 
     def reload_config(self) -> None:
         for execname, sockpath in [
-            ("birdc", self.bird4_sock),
-            ("birdc6", self.bird6_sock),
+            ("birdc", self.config.bird4_sock),
+            ("birdc6", self.config.bird6_sock),
         ]:
             if not sockpath.exists() or not sockpath.is_socket():
                 logging.info("%s is not a unix socket, skipping", sockpath)
@@ -305,37 +434,53 @@ class AnnouncementController:
 
     def set_egress(
         self,
-        prio: int,
-        srcip: str | IPv4Address | IPv6Address,
-        mux: str,
+        prefix: IPv4Network | IPv6Network,
+        mux: Mux,
         peerid: int | None,
     ) -> None:
-        assert ipaddress.ip_address(srcip)
+        prio = self.config.base_ip_rule_prio + get_ip_rule_prio_offset(prefix)
+
         muxid = self.mux2id[mux]
-        if peerid is None:
-            gateway = f"100.{64 + muxid}.128.1"
+        if isinstance(prefix, IPv4Network):
+            if peerid is None:
+                gateway = f"100.{64 + muxid}.128.1"
+            else:
+                gateway = f"100.{64 + muxid}.{peerid // 256}.{peerid % 256}"
+        elif isinstance(prefix, IPv6Network):
+            if peerid is None:
+                gateway = f"2804:269c:ff00:{muxid:x}:1::1"
+            else:
+                gateway = f"2804:269c:ff00:{muxid:x}::{peerid:x}"
         else:
-            gateway = f"100.{64 + muxid}.{peerid // 256}.{peerid % 256}"
+            assert_never(prefix)
 
-        cmd = f"ip rule add from {srcip} lookup {prio} prio {prio}"
-        _run_check_log(cmd, True)
+        family = socket.AF_INET6 if isinstance(prefix, IPv6Network) else socket.AF_INET
 
-        cmd = f"ip route flush table {prio}"
-        _run_check_log(cmd, False)
+        with IPRoute() as ip:
+            logging.info(
+                "pyroute2: rule add from %s lookup %d prio %d",
+                prefix,
+                prio,
+                prio,
+            )
+            ip.rule("add", priority=prio, table=prio, src=str(prefix), family=family)
 
-        cmd = f"ip route add default via {gateway} table {prio}"
-        _run_check_log(cmd, True)
+            logging.info("pyroute2: flushing route table %d", prio)
+            ip.flush_routes(table=prio)
 
-    def unset_egress(self, prio: int) -> None:
-        cmd = f"ip route flush table {prio}"
-        _run_check_log(cmd, False)
-        try:
-            cmd = f"ip rule del prio {prio}"
-            while True:
-                # Remove rules until none are left and CalledProcessError is raised
-                _run_check_log(cmd, True, False)
-        except subprocess.CalledProcessError:
-            pass
+            logging.info("pyroute2: route add default via %s table %d", gateway, prio)
+            ip.route("add", dst="default", gateway=gateway, table=prio)
+
+    def unset_egress(self, prefix: IPv4Network | IPv6Network) -> None:
+        prio = self.config.base_ip_rule_prio + get_ip_rule_prio_offset(prefix)
+        logging.info("Unsetting egress for prefix %s (prio %d)", prefix, prio)
+        with IPRoute() as ip:
+            ip.flush_routes(table=prio)
+            for rule in ip.get_rules(priority=prio):
+                try:
+                    ip.rule("del", **rule)
+                except Exception as e:
+                    logging.debug("failed to delete rule: %s", e)
 
 
 PROTOCOL_REGEX = re.compile(r"up(?P<peerid>\d+)_(?P<asn>\d+)")
@@ -350,36 +495,16 @@ def protocol_to_peerid_asn(proto: str) -> tuple[int, int]:
     return (peerid, asn)
 
 
-def _run_check_log(cmd: str, check: bool, log_errors: bool = True) -> None:
-    try:
-        logging.info("running %s", cmd)
-        subprocess.run(cmd.split(), capture_output=True, check=check)  # noqa: S603
-    except subprocess.CalledProcessError as cpe:
-        if log_errors:
-            logging.error("stdout: %s", cpe.stdout)
-            logging.error("stderr: %s", cpe.stderr)
-        raise
-
-
 class ExperimentController:
     def __init__(
         self,
         url: str,
         token: str,
         refresh: str | None = None,
-        schema_fn: str = "configs/experiment_schema.json",
     ):
         self.url = url
         self.token = token  # access-token
         self.refresh = refresh  # refresh-token
-        self.set_schema(schema_fn)
-
-    def set_schema(self, schema_fn):
-        with open(schema_fn, encoding="utf8") as fd:
-            self.schema = json.load(fd)
-
-    def validate(self, experiment):
-        jsonschema.validate(experiment["experiment"], self.schema)
 
     def post_request(self, data, uri):
         resp = requests.post(
@@ -409,7 +534,7 @@ class ExperimentController:
         return resp.json()
 
     def deploy(self, experiment):
-        self.validate(experiment)
+        ExperimentEnvelope.model_validate(experiment)
         try:
             uri = f"{self.url}/api/"
             return self.post_request(experiment, uri)
@@ -462,6 +587,19 @@ def create_parser() -> argparse.ArgumentParser:
         dest="url",
         help="PEERING site URL",
     )
+    parser.add_argument(
+        "--set-egress",
+        action="store_true",
+        dest="set_egress",
+        help="Set egress rules after deployment",
+    )
+    parser.add_argument(
+        "--egress-priority",
+        type=str,
+        nargs="+",
+        dest="egress_priority",
+        help="List of muxes in priority order for egress",
+    )
     return parser
 
 
@@ -469,16 +607,19 @@ def main() -> int:
     parser = create_parser()
     args = parser.parse_args()
 
-    prefixes4 = open(DEFAULT_PREFIXES4_FILE, encoding="utf8").read().splitlines()
-    prefixes6 = open(DEFAULT_PREFIXES6_FILE, encoding="utf8").read().splitlines()
-    prefixes = list(map(ipaddress.ip_network, prefixes4 + prefixes6))
-
     if args.announcement:
         with open(args.announcement, encoding="utf8") as announcement_json_fd:
             announcement_dict = json.load(announcement_json_fd)
-            announcement = UpdateSet.from_dict({ "prefix2update": announcement_dict })
-        ctrl = AnnouncementController(prefixes)
-        ctrl.deploy(announcement)
+            announcement = UpdateSet.model_validate(
+                {"prefix2update": announcement_dict}
+            )
+        config = ControllerConfig.from_basedir(AUTO_BASE_DIR)
+        ctrl = AnnouncementController(config)
+        ctrl.deploy(
+            announcement,
+            set_egress=args.set_egress,
+            egress_priority=args.egress_priority,
+        )
     elif args.experiment and args.url:
         token_fn = "certs/token.json"
         schema_fn = "configs/experiment_schema.json"
