@@ -1,0 +1,1 @@
+We have to implement this function. It should iterate over all files in data/order-muxes-by-distance. For each file, it should generate a sequence of announcements starting with the Anycast announcement, and then generate one configuration cumulatively withdrawing from one mux at a time in the order specified by the file.

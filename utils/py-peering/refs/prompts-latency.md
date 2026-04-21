@@ -1,0 +1,5 @@
+We are going to create a bash script that will run scamper (see scamper.sh) to measure latency.  The script should run a long-lived scamper instance to probe thousands of IP addresses in a $TARGETS_FILE.  While the long-lived instance is running (which we can check with kill -0), we should run a short-lived scamper instance to measure the latency to the $GATEWAY every second.  The short-lived instance should be run every second, and use three pings fired with 100ms between them.  Please check the scamper man page at refs/scamper.1.pdf
+
+## Integration Test Harness
+
+please write integration tests for latency.py; the plan is to implement a python script that will make an announcement for 184.164.224.0/24 (you can have an option to receive the source prefix as a cmdline parameter) through a mux (e.g., ufmg01), and then ping a hitlist of about 100 addresses. generate a hitlist using open DNS resolvers and root DNS server IPs. use a probing rate of 5 pps, and then we can check that the whole run finishes between 15 and 25 seconds. we should also check that the output warts.xz files are well-formed and contain actual ping responses.

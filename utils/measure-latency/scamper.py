@@ -7,29 +7,14 @@ import sys
 import time
 from pathlib import Path
 
+# Resolve the project root to import peering
+PROJECT_ROOT = Path(__file__).parent.parent.parent.resolve()
+sys.path.append(str(PROJECT_ROOT))
+from peering import build_mux2id
+
 # Configure logging to output to stderr
 logging.basicConfig(level=logging.INFO, format="%(levelname)s: %(message)s")
 logger = logging.getLogger(__name__)
-
-
-def load_mux2id(cfgs_dir: Path) -> dict[str, int]:
-    """Builds the mux to ID mapping by reading OpenVPN configuration files."""
-    mux2id: dict[str, int] = {}
-    if not cfgs_dir.exists():
-        logger.error(f"OpenVPN configs directory not found at {cfgs_dir}")
-        sys.exit(1)
-
-    # Regex to find 'dev tap' followed by one or more digits at the start of a line
-    dev_re = re.compile(r"^dev\s+tap(\d+)", re.MULTILINE)
-
-    for fn in cfgs_dir.glob("*.conf"):
-        name = fn.stem
-        content = fn.read_text()
-        match = dev_re.search(content)
-        if match:
-            mux2id[name] = int(match.group(1))
-
-    return mux2id
 
 
 def run_measurements(src_addr: str, mux: str, targets_fn: Path) -> None:
@@ -38,7 +23,11 @@ def run_measurements(src_addr: str, mux: str, targets_fn: Path) -> None:
     script_dir = Path(__file__).parent.resolve()
     openvpn_cfgs = script_dir.parent.parent / "configs" / "openvpn"
 
-    mux2id = load_mux2id(openvpn_cfgs)
+    mux2id = build_mux2id(openvpn_cfgs)
+
+    if not mux2id:
+        logger.error(f"No OpenVPN configurations found in {openvpn_cfgs}")
+        sys.exit(1)
 
     if mux not in mux2id:
         logger.error(f"Mux '{mux}' not found in OpenVPN configurations.")
