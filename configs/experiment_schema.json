@@ -156,7 +156,7 @@
             "$ref": "#/definitions/peeringMux"
           }
         },
-        "peers": {
+        "peer_ids": {
           "type": "array",
           "uniqueItems": true,
           "items": {
