@@ -69,7 +69,7 @@ if [ -S "$bird_sock" ] ; then
         echo "Command fuser not found, cannot check BIRD control socket"
         exit 1
     fi
-    if ! fuser "$bird_sock" > /dev/null ; then
+    if ! fuser -s "$bird_sock" > /dev/null ; then
         rm -f "$bird_sock"
         echo "Deleted stale BIRD control socket"
     fi
