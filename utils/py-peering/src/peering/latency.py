@@ -128,8 +128,10 @@ def round_callback(
         futures = {executor.submit(launch_scamper, config): config for config in configs}
         for future in as_completed(futures):
             config = futures[future]
+            new_ts = {}
             try:
-                tstamps.update(future.result())
+                new_ts = future.result()
+                new_ts = {f"{k}-{config.pfxid}-{config.mux}": v for k, v in new_ts.items()}
             except Exception:
                 logger.exception(
                     "Scamper run failed for prefix id %d via %s",
@@ -137,6 +139,7 @@ def round_callback(
                     config.mux,
                 )
                 raise
+            tstamps.update(new_ts)
 
     return tstamps
 

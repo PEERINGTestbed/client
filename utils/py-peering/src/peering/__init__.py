@@ -20,7 +20,16 @@ from ipaddress import (
 )
 import time
 from collections.abc import Iterable, Mapping
-from typing import Any, Callable, Literal, Self, TypeAlias, assert_never, overload
+from typing import (
+    Any,
+    Callable,
+    Iterator,
+    Literal,
+    Self,
+    TypeAlias,
+    assert_never,
+    overload,
+)
 
 from pydantic import BaseModel, Field
 from pyroute2 import IPRoute  # pyright: ignore
@@ -416,7 +425,7 @@ class ControlPlane:
             ("birdc6", self.config.bird6_sock),
         ]:
             if not sockpath.exists() or not sockpath.is_socket():
-                logging.info("%s is not a unix socket, skipping", sockpath)
+                logging.debug("%s is not a unix socket, skipping", sockpath)
                 continue
 
             proc = subprocess.Popen(  # noqa: S603
@@ -467,10 +476,10 @@ class Sequencer:
             [
                 dict[IPNetwork, Update],  # prefix2update
                 dict[IPNetwork, Mux],  # prefix2egress
-                pathlib.Path,  # round_output
+                pathlib.Path,  # round_outdir
                 CallbackData,
             ],
-            dict[str, float],  # tstamps
+            dict[str, float],  # event label-to-timestamp mapping
         ]
         data: CallbackData
 
@@ -503,9 +512,9 @@ class Sequencer:
             tstamps["round-start"] = time.time()
 
             pfx2upd = self._collect_updates(updates_iter)
-            if pfx2upd is None:
+            if not pfx2upd:
                 done = True
-                continue
+                break
 
             tstamps["deploy-pfx2ann"] = time.time()
             pfx2mux = self.data_plane.update_egresses(pfx2upd, self.config.egress_priority)
@@ -516,27 +525,25 @@ class Sequencer:
             self._save_round_artifacts(round_outdir, pfx2upd, pfx2mux)
 
             self._run_callbacks(callbacks, pfx2upd, pfx2mux, round_outdir, tstamps)
-
             self._wait_for_round_duration(tstamps)
+
+            self.data_plane.unset_egresses(self.config.prefixes)
 
             if self.config.withdraw_every_round:
                 self._withdraw_after_round(roundidx, tstamps)
 
-            (round_outdir / "timestamps.json").write_text(
-                json.dumps(tstamps, indent=2), encoding="utf8"
-            )
+            outfd = round_outdir / "timestamps.json"
+            outfd.write_text(json.dumps(tstamps, indent=2), encoding="utf8")
 
             roundidx += 1
 
-    def _collect_updates(
-        self, updates_iter: itertools.islice[Update]
-    ) -> dict[IPNetwork, Update] | None:
+    def _collect_updates(self, updates_iter: Iterator[Update]) -> dict[IPNetwork, Update]:
         pfx2upd: dict[IPNetwork, Update] = {}
         for prefix in self.config.prefixes:
             try:
                 pfx2upd[prefix] = next(updates_iter)
             except StopIteration:
-                return None if not pfx2upd else pfx2upd
+                break
         return pfx2upd
 
     def _save_round_artifacts(
@@ -545,12 +552,13 @@ class Sequencer:
         pfx2upd: dict[IPNetwork, Update],
         pfx2mux: dict[IPNetwork, Mux],
     ) -> None:
+        logging.debug("Saving announcements.json and egresses.json for %s", round_outdir)
         announcements = {str(pfx): upd.model_dump(mode="json") for pfx, upd in pfx2upd.items()}
-        (round_outdir / "announcements.json").write_text(
-            json.dumps(announcements, indent=2), encoding="utf8"
-        )
+        outfd = round_outdir / "announcements.json"
+        outfd.write_text(json.dumps(announcements, indent=2), encoding="utf8")
         egresses = {str(pfx): str(mux) for pfx, mux in pfx2mux.items()}
-        (round_outdir / "egresses.json").write_text(json.dumps(egresses, indent=2), encoding="utf8")
+        outfd = round_outdir / "egresses.json"
+        outfd.write_text(json.dumps(egresses, indent=2), encoding="utf8")
 
     def _run_callbacks(
         self,
@@ -560,34 +568,32 @@ class Sequencer:
         round_outdir: pathlib.Path,
         tstamps: dict[str, float],
     ) -> None:
+        logging.info("Running callbacks for %s", round_outdir)
         tstamps["callbacks-start"] = time.time()
         for cb in callbacks:
             tstamps[f"cb-{cb.name}-start"] = time.time()
             cb_tstamps = cb.func(pfx2upd, pfx2mux, round_outdir, cb.data)
             tstamps[f"cb-{cb.name}-end"] = time.time()
             duration = tstamps[f"cb-{cb.name}-end"] - tstamps[f"cb-{cb.name}-start"]
-            logging.info("%s took %f seconds to run", cb.name, duration)
+            logging.info("    %s completed in %fs", cb.name, duration)
+            cb_tstamps = {f"cb-{cb.name}/{k}": v for k, v in cb_tstamps.items()}
             tstamps.update(cb_tstamps)
         tstamps["callbacks-end"] = time.time()
 
     def _wait_for_round_duration(self, tstamps: dict[str, float]) -> None:
-        callbacks_duration = tstamps["callbacks-end"] - tstamps["deploy-pfx2ann"]
-        spare_time = self.config.round_duration - callbacks_duration
-        logging.info("Callbacks finished with %d spare seconds", spare_time)
+        cb_duration = tstamps["callbacks-end"] - tstamps["callbacks-start"]
+        spare_time = self.config.round_duration - cb_duration
+        logging.info("Callbacks completed in %fs (%ds to spare)", cb_duration, spare_time)
         round_wait = max(MIN_ROUND_WAIT, spare_time)
-        logging.info("Sleeping %f seconds to complete round duration", round_wait)
+        logging.info("Sleeping %fs to complete round duration", round_wait)
         time.sleep(round_wait)
         tstamps["round-end"] = time.time()
 
     def _withdraw_after_round(self, roundidx: int, tstamps: dict[str, float]) -> None:
-        tstamps["withdraw-start"] = time.time()
         logging.info("Starting withdraw after round %d", roundidx)
-        self.data_plane.unset_egresses(self.config.prefixes)
+        tstamps["withdraw-start"] = time.time()
         self.control_plane.withdraw()
-        logging.info(
-            "Waiting %d seconds for withdrawals to converge",
-            self.config.withdraw_duration,
-        )
+        logging.info("Waiting %ds for withdrawals to converge", self.config.withdraw_duration)
         time.sleep(self.config.withdraw_duration)
         tstamps["withdraw-end"] = time.time()
 
