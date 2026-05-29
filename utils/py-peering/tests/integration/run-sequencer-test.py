@@ -13,14 +13,13 @@ import ipaddress
 import logging
 import os
 import pathlib
-import subprocess
 import sys
 
 from peering import Announcement, Mux, Sequencer, Update
 from peering.latency import MeasureLatencyCallbackData, round_callback
 
 BASEDIR = pathlib.Path(__file__).resolve().parents[4]
-PREFIXES = [
+PREFIXES: list[ipaddress.IPv4Network | ipaddress.IPv6Network] = [
     ipaddress.IPv4Network("184.164.224.0/24"),
     ipaddress.IPv4Network("184.164.225.0/24"),
 ]
@@ -36,15 +35,6 @@ OUTDIR = pathlib.Path(__file__).resolve().parent / "results-latency-sequencer"
 
 ROUND_DURATION = 120
 WITHDRAW_DURATION = 15
-
-
-def decompress_targets() -> None:
-    if TARGETS_TXT.exists():
-        return
-    subprocess.run(
-        ["unxz", "--keep", "--force", str(TARGETS_XZ)],
-        check=True,
-    )
 
 
 def build_updates() -> list[Update]:
@@ -68,8 +58,6 @@ def main() -> None:
         level=logging.INFO,
         format="%(asctime)s %(levelname)s %(message)s",
     )
-
-    decompress_targets()
 
     updates = build_updates()
 
