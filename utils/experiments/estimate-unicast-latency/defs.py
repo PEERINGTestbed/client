@@ -1,34 +1,18 @@
+from ipaddress import IPv4Network, IPv6Network
 import pathlib
 
-import peering
-
-PROPAGATION_TIME = 600
 ANNOUNCEMENT_DURATION = 5400
+PROPAGATION_TIME = 600
+PER_PFX_PPS = 600
 
-BIRD_CFG_DIR = pathlib.Path("../../", "configs/bird")
-BIRD4_SOCK_PATH = pathlib.Path("../../", "var/bird.ctl")
-ANNOUNCEMENT_SCHEMA = pathlib.Path("../../", "configs/announcement_schema.json")
-MUX2TAP_FILE = pathlib.Path("../../", "var/mux2dev.txt")
-
+BASEDIR = pathlib.Path(__file__).resolve().parents[3]
 TARGETS_FILE = pathlib.Path("data/targets.txt")
-CATCHMENTS_DIR = pathlib.Path("../measure-catchments")
-MEASURE_CATCHMENTS_NUM_ROUNDS = 2
-CATCHMENTS_PINGER_PPS = 5000
 
-# used for iproute2 rule prio and verfploeter ICMP IDs
-# must be less than 30000 to come BEFORE the default rules
-PREFIX_ID_BASE = 14000
-
-EGRESS_PREFS: list[peering.MuxName] = [
-    peering.MuxName.ufmg01,
-    peering.MuxName.clemson01,
-]
-
-PREFIXES: list[str] = [
-    "184.164.226.0/24",
-    "184.164.227.0/24",
-    "184.164.247.0/24",
-    "184.164.254.0/24",
+PREFIXES: list[IPv4Network | IPv6Network] = [
+    IPv4Network("184.164.226.0/24"),
+    IPv4Network("184.164.227.0/24"),
+    IPv4Network("184.164.247.0/24"),
+    IPv4Network("184.164.254.0/24"),
 ]
 
 VULTR_PROVIDERS_20251103 = [

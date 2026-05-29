@@ -199,6 +199,7 @@ class DataPlane:
         self.unset_egresses(prefixes)
         pfx2mux: dict[IPNetwork, Mux] = {}
 
+        ipr = IPRoute()
         for pfx, upd in prefix2update.items():
             if not upd.announce:
                 continue
@@ -208,23 +209,25 @@ class DataPlane:
             family = socket.AF_INET6 if pfx.version == 6 else socket.AF_INET
 
             tid = self.get_egress_table(pfx)
-            with IPRoute() as ip:
-                logging.info("pyroute2: rule add from %s lookup %d", pfx, tid)
-                ip.rule("add", priority=tid, table=tid, src=str(pfx), family=family)
-                logging.info("pyroute2: route add default via %s table %d", gw, tid)
-                ip.route("add", dst="default", gateway=str(gw), table=tid, family=family)
+            logging.info("pyroute2: rule add from %s lookup %d", pfx, tid)
+            ipr.rule("add", priority=tid, table=tid, src=str(pfx), family=family)
+            logging.info("pyroute2: route add default via %s table %d", gw, tid)
+            ipr.route("add", dst="default", gateway=str(gw), table=tid, family=family)
 
             pfx2mux[pfx] = egress_mux
+
+        ipr.close()
         return pfx2mux
 
     def unset_egresses(self, prefixes: Iterable[IPNetwork]) -> None:
+        ipr = IPRoute()
         for pfx in set(prefixes):
             tid = self.get_egress_table(pfx)
-            with IPRoute() as ip:
-                logging.info("pyroute2: flush route table %d", tid)
-                ip.flush_routes(table=tid)
-                logging.info("pyroute2: rule del prio %d", tid)
-                ip.flush_rules(priority=tid)
+            logging.info("pyroute2: flush route table %d", tid)
+            ipr.flush_routes(table=tid)
+            logging.info("pyroute2: rule del prio %d", tid)
+            ipr.flush_rules(priority=tid)
+        ipr.close()
 
     def get_egress_table(self, prefix: IPNetwork) -> int:
         """Computes the IP routing table number and rule priority for a source prefix."""
@@ -308,6 +311,11 @@ def prefix2id(prefix: IPNetwork) -> int:
     if isinstance(prefix, IPv6Network):  # pyright: ignore[reportUnnecessaryIsInstance]
         return int(prefix.network_address.packed[5])
     assert_never(prefix)
+
+
+def prefix2string(prefix: IPNetwork) -> str:
+    """Convert an IP prefix to a filesystem-safe string."""
+    return str(prefix).replace(".", "i").replace(":", "j").replace("/", "s")
 
 
 class ControlPlane:
@@ -500,42 +508,56 @@ class Sequencer:
         self.control_plane.withdraw()
 
         tstamps: dict[str, float] = {}
-        done = False
         roundidx = first_round
         updates_iter = itertools.islice(
             self.config.updates, first_round * len(self.config.prefixes), None
         )
 
-        while not done:
-            logging.info("#####################################################")
-            logging.info("Starting round %d", roundidx)
-            tstamps["round-start"] = time.time()
-
+        while True:
             pfx2upd = self._collect_updates(updates_iter)
             if not pfx2upd:
-                done = True
                 break
 
-            tstamps["deploy-pfx2ann"] = time.time()
-            pfx2mux = self.data_plane.update_egresses(pfx2upd, self.config.egress_priority)
-            self.control_plane.deploy(pfx2upd)
-
-            round_outdir = self.config.outdir / f"round{roundidx}"
-            round_outdir.mkdir(parents=True, exist_ok=True)
-            self._save_round_artifacts(round_outdir, pfx2upd, pfx2mux)
-
-            self._run_callbacks(callbacks, pfx2upd, pfx2mux, round_outdir, tstamps)
-            self._wait_for_round_duration(tstamps)
-
-            self.data_plane.unset_egresses(self.config.prefixes)
-
-            if self.config.withdraw_every_round:
-                self._withdraw_after_round(roundidx, tstamps)
-
-            outfd = round_outdir / "timestamps.json"
-            outfd.write_text(json.dumps(tstamps, indent=2), encoding="utf8")
+            try:
+                self._run_round(roundidx, pfx2upd, callbacks, tstamps)
+            except Exception as e:
+                logging.exception(e)
+                self.data_plane.unset_egresses(self.config.prefixes)
+                self.control_plane.withdraw()
+                logging.fatal("Execution failed on round %d", roundidx)
+                break
 
             roundidx += 1
+
+    def _run_round(
+        self,
+        roundidx: int,
+        pfx2upd: dict[IPNetwork, Update],
+        callbacks: list[RoundCallback[Any]],
+        tstamps: dict[str, float],
+    ) -> None:
+        logging.info("#####################################################")
+        logging.info("Starting round %d", roundidx)
+        tstamps["round-start"] = time.time()
+
+        tstamps["deploy-pfx2ann"] = time.time()
+        pfx2mux = self.data_plane.update_egresses(pfx2upd, self.config.egress_priority)
+        self.control_plane.deploy(pfx2upd)
+
+        round_outdir = self.config.outdir / f"round{roundidx}"
+        round_outdir.mkdir(parents=True, exist_ok=True)
+        self._save_round_artifacts(round_outdir, pfx2upd, pfx2mux)
+
+        self._run_callbacks(callbacks, pfx2upd, pfx2mux, round_outdir, tstamps)
+        self._wait_for_round_duration(tstamps)
+
+        self.data_plane.unset_egresses(self.config.prefixes)
+
+        if self.config.withdraw_every_round:
+            self._withdraw_after_round(roundidx, tstamps)
+
+        outfd = round_outdir / "timestamps.json"
+        outfd.write_text(json.dumps(tstamps, indent=2), encoding="utf8")
 
     def _collect_updates(self, updates_iter: Iterator[Update]) -> dict[IPNetwork, Update]:
         pfx2upd: dict[IPNetwork, Update] = {}

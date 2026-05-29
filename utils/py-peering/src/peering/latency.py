@@ -21,7 +21,7 @@ from typing import Literal, TypeAlias, get_args
 
 from pydantic import BaseModel, Field, model_validator
 
-from peering import Announcement, DataPlane, Mux, Update, prefix2id
+from peering import Announcement, DataPlane, Mux, Update, prefix2id, prefix2string
 
 IPNetwork: TypeAlias = IPv4Network | IPv6Network
 IPAddress: TypeAlias = IPv4Address | IPv6Address
@@ -92,6 +92,7 @@ def round_callback(
         if mux is None:
             logger.error("No egress mux selected for %s", pfx)
             continue
+        pfxstr = prefix2string(pfx)
         pfxid = prefix2id(pfx)
         source = ipaddress.ip_interface(next(pfx.hosts()))
         gateway = dataplane.get_openvpn_gateway(pfx2egress[pfx], pfx.version)
@@ -99,7 +100,7 @@ def round_callback(
         if not DataPlane.is_connected(gateway):
             logger.error("Gateway %s is not reachable on any directly-connected subnet", gateway)
             continue
-        tasks.append((source.ip, gateway, mux, pfxid))
+        tasks.append((source.ip, gateway, mux, pfxid, pfxstr))
 
     tstamps: dict[str, float] = {}
     if not tasks:
@@ -113,7 +114,7 @@ def round_callback(
             source=source,
             gateway=gateway,
             targets_fn=data.targets_fn,
-            output_dir=outputdir,
+            output_dir=outputdir / f"latency-{pfxstr}-{mux}",
             mux=mux,
             pfxid=pfxid,
             pkts_per_sec=pkts_per_sec,
@@ -121,7 +122,7 @@ def round_callback(
             max_probes=data.max_probes,
             max_replies=data.max_replies,
         )
-        for (source, gateway, mux, pfxid) in tasks
+        for (source, gateway, mux, pfxid, pfxstr) in tasks
     ]
 
     with ThreadPoolExecutor(max_workers=min(parallel_calls, len(configs))) as executor:
@@ -241,16 +242,16 @@ def launch_scamper(config: ScamperConfig) -> dict[str, float]:
         else:
             logger.warning("No gateway warts files were generated")
 
-    except FileNotFoundError:
-        logger.error("scamper command not found")
-        raise RuntimeError("scamper command not found") from None
+    except FileNotFoundError as fnfe:
+        logger.exception(fnfe)
+        raise
     except KeyboardInterrupt:
         logger.info("Measurement interrupted by user")
+        raise
+    finally:
         if targets_proc is not None:
             targets_proc.terminate()
             targets_proc.wait()
-        raise
-    finally:
         if targets_log_fh is not None:
             targets_log_fh.close()
 
