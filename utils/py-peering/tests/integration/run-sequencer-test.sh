@@ -19,14 +19,17 @@ if [[ ${VIRTUAL_ENV:-undef} = undef ]]; then
     source ../../.venv/bin/activate
 fi
 
+RESULTSDIR=results-sequencer
+
 echo "Using environment at $VIRTUAL_ENV"
 echo "Using uv at $(command -v uv)"
 
-rm -rf results-latency-sequencer
+rm -rf $RESULTSDIR
 
 unxz --keep --force test-targets.txt.xz
-./run-sequencer-test.py
+./run-sequencer-test.py $RESULTSDIR
 rm -f test-targets.txt
 
 echo "=== RESULTS ==="
-report_sc_ping_stats results-latency-sequencer
+report_sc_ping_stats $RESULTSDIR
+report_pcap_stats $RESULTSDIR

@@ -25,3 +25,13 @@ function report_sc_ping_stats {
         echo "$(basename "$warts"): $recv responses, $sent probes"
     done < <(find "$outdir" -name '*.warts.xz')
 }
+
+function report_pcap_stats {
+    local outdir=$1
+    while read -r pcap; do
+        count=$(tcpdump -n -r "$pcap" 2>/dev/null | wc -l)
+        if [[ $count -gt 0 ]]; then
+            echo "$pcap: $count packets"
+        fi
+    done < <(find "$outdir" -name '*.pcap')
+}

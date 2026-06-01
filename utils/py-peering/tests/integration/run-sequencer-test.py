@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""End-to-end test for peering.Sequencer with latency.round_callback.
+"""End-to-end test for peering.Sequencer with latency and catchment callbacks.
 
 Uses 4 vtr muxes and 2 prefixes across 2 rounds, replicating
 run-latency-test.sh but through the Sequencer orchestration layer.
@@ -16,7 +16,9 @@ import pathlib
 import sys
 
 from peering import Announcement, Mux, Sequencer, Update
+from peering.catchments import MeasureCatchmentsCallbackData, round_callback as catchment_callback
 from peering.latency import MeasureLatencyCallbackData, round_callback
+import peering
 
 BASEDIR = pathlib.Path(__file__).resolve().parents[4]
 PREFIXES: list[ipaddress.IPv4Network | ipaddress.IPv6Network] = [
@@ -31,7 +33,6 @@ VTR_MUXES = [
 ]
 TARGETS_XZ = pathlib.Path(__file__).resolve().parent / "test-targets.txt.xz"
 TARGETS_TXT = pathlib.Path(__file__).resolve().parent / "test-targets.txt"
-OUTDIR = pathlib.Path(__file__).resolve().parent / "results-latency-sequencer"
 
 ROUND_DURATION = 120
 WITHDRAW_DURATION = 15
@@ -53,6 +54,9 @@ def main() -> None:
     if os.getuid() != 0:
         print("This test requires root (sudo)", file=sys.stderr)
         sys.exit(1)
+
+    OUTDIR = sys.argv[1]
+    peering.MIN_ROUND_WAIT = 10
 
     logging.basicConfig(
         level=logging.INFO,
@@ -84,6 +88,15 @@ def main() -> None:
                 per_pfx_pps=20,
                 max_probes=4,
                 max_replies=3,
+            ),
+        ),
+        Sequencer.RoundCallback(
+            name="measure-catchments",
+            func=catchment_callback,
+            data=MeasureCatchmentsCallbackData(
+                basedir=BASEDIR,
+                targets_fn=TARGETS_TXT,
+                pkts_per_sec=20,
             ),
         ),
     ]

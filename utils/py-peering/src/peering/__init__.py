@@ -505,7 +505,10 @@ class Sequencer:
 
     def run(self, callbacks: list[RoundCallback[Any]], first_round: int = 0) -> None:
         self.data_plane.unset_egresses(self.config.prefixes)
-        self.control_plane.withdraw()
+        for prefix in self.config.prefixes:
+            self.control_plane.withdraw(prefix)
+        logging.info("Waiting %ds for initial withdrawals to converge", self.config.withdraw_duration)
+        time.sleep(self.config.withdraw_duration)
 
         tstamps: dict[str, float] = {}
         roundidx = first_round
