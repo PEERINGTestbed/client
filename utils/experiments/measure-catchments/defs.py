@@ -12,5 +12,5 @@ PREFIXES: list[IPv4Network | IPv6Network] = [
 TARGETS_FILE = pathlib.Path("data/targets.txt")
 ANNOUNCEMENT_DURATION = 5400
 PROPAGATION_TIME = 600
-PER_PFX_PPS = 600
+PER_PFX_PPS = 1000
 
