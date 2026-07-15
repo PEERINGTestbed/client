@@ -9,7 +9,7 @@ usage: peering app -i ID {-n | -b} {-d | -p PREFIX [-u UPSTREAM]}
                 app.  You can pick any number, but need to use it consistently.
 
 Application class (exactly one of these is required):
--n              Create a namespace where applications cab ne created.  The
+-n              Create a namespace where applications can be created.  The
                 namespace will be named papp\$ID.
 -b              Create a Docker bridge where Docker applications can be
                 attached.  The bridge will be named pbr\$ID.
