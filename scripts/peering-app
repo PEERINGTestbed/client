@@ -92,13 +92,13 @@ fi
 minus6="-4"
 pfxlen=${prefix##*/}
 if [[ $prefix =~ : ]] ; then
-    appip=$(ipcalc -n -b "$prefix" | grep HostMin | awk '{print $2;}')
-    hostip=$(ipcalc -n -b "$prefix" | grep HostMax | awk '{print $2;}')
+    appip=$(ipcalc "$prefix" | grep HostMin | awk '{print $2;}')
+    hostip=$(ipcalc "$prefix" | grep HostMax | awk '{print $2;}')
     fprefix=$(echo "$prefix" | sed -e "s|::[0-9a-f]*/[0-9]*|::\/48|")
     minus6="-6"
 else
-    appip=$(ipcalc -n -b "$prefix" | grep HostMin | awk '{print $2;}')
-    hostip=$(ipcalc -n -b "$prefix" | grep HostMax | awk '{print $2;}')
+    appip=$(ipcalc "$prefix" | grep HostMin | awk '{print $2;}')
+    hostip=$(ipcalc "$prefix" | grep HostMax | awk '{print $2;}')
     fprefix=$(echo "$prefix" | sed -e "s|.[0-9]*/[0-9-]*|.0/24|")
 fi
 
