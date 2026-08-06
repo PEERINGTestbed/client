@@ -1,0 +1,15 @@
+  # No-NAT network carrying the public PEERING prefix between peering<->revtrvp.
+  # Masquerade is disabled so revtrvp's source IP is preserved on egress.
+  __NETWORK_NAME__:
+    driver: bridge
+    driver_opts:
+      com.docker.network.bridge.enable_ip_masquerade: "false"
+      # Unique per prefix (Docker host bridge names are capped at 15 chars).
+      com.docker.network.bridge.name: __BRIDGE_NAME__
+    ipam:
+      driver: default
+      config:
+        # Park the host-side bridge gateway at .253; the real gateway that
+        # revtrvp routes through is the peering container at .254.
+        - subnet: __PREFIX__
+          gateway: __PREFIX_GATEWAY__
