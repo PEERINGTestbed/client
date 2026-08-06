@@ -1,0 +1,29 @@
+  # Reverse Traceroute vantage point for prefix __PREFIX__.
+  __SERVICE_NAME__:
+    build:
+      context: ./revtrvp
+      args:
+        GO_FLAGS: "-buildvcs=false"
+    entrypoint: ["/revtrvp-entrypoint.sh"]
+    command: ["/server.crt", "./plvp.config", "-loglevel", "debug"]
+    # The VP exits if it cannot resolve/reach the controller, which is expected
+    # until the prefix is announced and BGP converges.  Restart so it keeps
+    # retrying until `make announce` brings the egress up.
+    restart: unless-stopped
+    depends_on:
+      - peering
+    dns:
+      - 8.8.8.8
+    environment:
+      # Peering container's address on this VP's backend network.
+      REVTR_GATEWAY: __PREFIX_PEERING_IP__
+    networks:
+      __NETWORK_NAME__:
+        aliases:
+          - revtrvp
+        ipv4_address: __PREFIX_REVTRVP_IP__
+    volumes:
+      - "./scripts/revtrvp-entrypoint.sh:/revtrvp-entrypoint.sh:ro"
+      - "./config/plvp.config:/plvp.config:ro"
+    cap_add:
+      - NET_ADMIN

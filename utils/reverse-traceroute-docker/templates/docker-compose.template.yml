@@ -1,0 +1,41 @@
+# Docker Compose stack: Reverse Traceroute VP(s) behind PEERING.
+# The `peering` service is the gateway/router. Data-plane egress is established
+# by `make up` / `make openvpn mux=ufmg01` (not by the container entrypoint).
+networks:
+  # NAT'd network for the peering container's OWN control traffic (OpenVPN to
+  # the mux, DNS, git).  Docker masquerades this out the host as normal.
+  afrontend:
+    driver: bridge
+    ipam:
+      driver: default
+      config:
+        - subnet: 172.16.50.0/24
+
+__BACKEND_NETS__
+
+services:
+  # PEERING client acting as the gateway/router.
+  peering:
+    build: ../../docker
+    working_dir: /root/client
+    entrypoint: ["/peering-gateway-entrypoint.sh"]
+    stdin_open: true
+    tty: true
+    networks:
+      afrontend:
+__PEERING_BACKEND_NETS__
+    volumes:
+      # Pinned client submodule provides the peering CLI, scripts and configs.
+      - "./client:/root/client"
+      # Certs and prefix DB overlaid on top (kept out of the submodule).
+      - "./certs:/root/client/certs:ro"
+      - "./config/prefixes.txt:/root/client/prefixes.txt:ro"
+      - "./config/prefixes6.txt:/root/client/prefixes6.txt:ro"
+      # Gateway entrypoint + Makefile-driven OpenVPN/egress helper.
+      - "./scripts/peering-gateway-entrypoint.sh:/peering-gateway-entrypoint.sh:ro"
+      - "./scripts/peering-openvpn-up.sh:/peering-openvpn-up.sh:ro"
+    cap_add:
+      - NET_ADMIN
+    privileged: true
+
+__REVTRVP_SERVICES__
