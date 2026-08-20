@@ -4,7 +4,7 @@ from parsers import util
 
 SUPPORTED = set(["BGP"])
 HEADER_LINE_FIELDS = list(["name", "proto", "table", "state", "since", "info"])
-SUMMARY_RE = r"^(?P<name>\w+)\s+(?P<proto>\w+)\s+(?P<table>\S+)\s+(?P<state>\w+)\s+(?P<since>[0-9:-]+)\s*(?P<info>.*)$"
+SUMMARY_RE = r"^(?P<name>\w+)\s+(?P<proto>\w+)\s+(?P<table>\S+)\s+(?P<state>\w+)\s+(?P<since>\S+)\s*(?P<info>.*)$"
 DETAILS_RE = r"^\s+(?P<desc>[^:]+):(?P<data>.+)$"
 
 
