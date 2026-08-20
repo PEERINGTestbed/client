@@ -653,12 +653,41 @@ def build_mux2id(cfgs_dir: pathlib.Path) -> dict[Mux, int]:
     return mux2id
 
 
-IXP_SPECIAL_PEERS_V4: dict[Mux, dict[int, list[int]]] = {
+IXP_TRANSIT_PROVIDERS_V4: dict[Mux, dict[int, list[int]]] = {
     Mux.amsterdam01: {
         # PeerASN: list[sessionIDs]
+        12859: [60, 61],  # Bit
+        8283: [52],  # Coloclue
+    },
+    Mux.saopaulo01: {
+        26162: [637],  # OpenX
+    },
+    Mux.seattle01: {
+        3130: [592],  # RGNet
+    },
+}
+
+IXP_ROUTE_SERVERS_V4: dict[Mux, dict[int, list[int]]] = {
+    Mux.amsterdam01: {
+        6777: [27, 29],  # Route Servers
+    },
+    Mux.saopaulo01: {
+        26162: [606, 607],  # Route Servers
+    },
+    Mux.seattle01: {
+        33108: [1, 2],  # Route Servers
+    },
+}
+
+IXP_SPECIAL_PEERS_V4: dict[Mux, dict[int, list[int]]] = {
+    Mux.amsterdam01: {
         6777: [27, 29],  # Route Servers
         12859: [60, 61],  # Bit
         8283: [52],  # Coloclue
+    },
+    Mux.saopaulo01: {
+        26162: [606, 607],  # Route Servers
+        26162: [637],  # OpenX
     },
     Mux.seattle01: {
         33108: [1, 2],  # Route Servers
@@ -666,12 +695,40 @@ IXP_SPECIAL_PEERS_V4: dict[Mux, dict[int, list[int]]] = {
     },
 }
 
+IXP_TRANSIT_PROVIDERS_V6: dict[Mux, dict[int, list[int]]] = {
+    Mux.amsterdam01: {
+        12859: [95, 96],  # Bit
+        8283: [94],  # Coloclue
+    },
+    Mux.saopaulo01: {
+        26162: [638],  # OpenX
+    },
+    Mux.seattle01: {
+        3130: [593],  # RGNet
+    },
+}
+
+IXP_ROUTE_SERVERS_V6: dict[Mux, dict[int, list[int]]] = {
+    Mux.amsterdam01: {
+        6777: [71, 72],  # Route Servers
+    },
+    Mux.saopaulo01: {
+        26162: [461, 463],  # Route Servers
+    },
+    Mux.seattle01: {
+        33108: [5, 6],  # Route Servers
+    },
+}
+
 IXP_SPECIAL_PEERS_V6: dict[Mux, dict[int, list[int]]] = {
     Mux.amsterdam01: {
-        # PeerASN: list[sessionIDs]
         6777: [71, 72],  # Route Servers
         12859: [95, 96],  # Bit
         8283: [94],  # Coloclue
+    },
+    Mux.saopaulo01: {
+        26162: [461, 463],  # Route Servers
+        26162: [638],  # OpenX
     },
     Mux.seattle01: {
         33108: [5, 6],  # Route Servers
