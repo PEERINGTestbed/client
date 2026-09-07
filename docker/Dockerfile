@@ -1,4 +1,4 @@
-FROM python:3.9-bullseye
+FROM python:3.14-bookworm
 LABEL maintainer="PEERING Staff <team@peering.ee.columbia.edu>"
 
 RUN apt-get update && apt-get install --no-install-recommends -y \
