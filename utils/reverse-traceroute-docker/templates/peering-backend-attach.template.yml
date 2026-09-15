@@ -1,0 +1,5 @@
+      __NETWORK_NAME__:
+        aliases:
+          - gateway
+          - peering
+        ipv4_address: __PREFIX_PEERING_IP__
