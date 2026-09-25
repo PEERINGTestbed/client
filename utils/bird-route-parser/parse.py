@@ -74,11 +74,16 @@ def show_route(inputfd, outfd) -> None:
         mdata = m.groupdict()
         rt = dict((k, v.strip()) for k, v in mdata.items() if v is not None)
         rt[route.SUMMARY_NETWORK_KEY] = network
-        line = reader.readline()
-        m = re.match(route.VIA_RE, line)
-        assert m, f"Could not parse VIA_RE on line: [{line}]"
-        mdata = m.groupdict()
-        rt.update({(k, v.strip()) for k, v in mdata.items() if v is not None})
+        if rt["rtype"] == "unicast":
+            line = reader.readline()
+            m = re.match(route.VIA_RE, line)
+            assert m, f"Could not parse VIA_RE on line: [{line}]"
+            mdata = m.groupdict()
+            rt.update({(k, v.strip()) for k, v in mdata.items() if v is not None})
+        else:
+            assert rt["rtype"] == "unreachable", (
+                f"Unsupported rtype [{rt['rtype']}] on line: [{line}]"
+            )
         v = util.parse_desc_lines(
             reader, route.DETAILS_RE, route.DETAILS_PARSERS, route.SUMMARY_RE
         )
