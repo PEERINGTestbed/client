@@ -16,6 +16,8 @@ def parse_desc_int_list(reader):
     REGEX = r"^\s+(?P<desc>[^:]+):\s+(?P<data>.+)$"
     line = reader.readline()
     m = re.match(REGEX, line)
+    if m is None:
+        return None, None
     if "{" in m.group("data") or "." in m.group("data"):
         # Ignore AS-paths with AS-sets
         return normalize_desc(m.group("desc")), None
@@ -27,6 +29,8 @@ def parse_desc_colon_int(reader):
     REGEX = r"^\s+(?P<desc>[^:]+):\s+(?P<data>\d+)$"
     line = reader.readline()
     m = re.match(REGEX, line)
+    if m is None:
+        return None, None
     return normalize_desc(m.group("desc")), int(m.group("data"))
 
 
@@ -41,6 +45,8 @@ def parse_desc_colon_str(reader):
     reader.rewind_line()
     buf = "".join(l for l in lines)
     m = re.match(REGEX, buf)
+    if m is None:
+        return None, None
     data = str(m.group("data")).strip()
     return normalize_desc(m.group("desc")), data
 
@@ -61,6 +67,10 @@ def parse_desc_lines(reader, regex, parsers, ignore_regex=None):
         reader.rewind_line()
         try:
             k, v = parsers[desc](reader)
+            if k is None:
+                logging.warning("skipping unparseable line [%s]", line)
+                line = reader.readline()
+                continue
             result[k] = v
         except KeyError:
             logging.exception("parse_details: desc [%s] has no parser [%s]", desc, line)
